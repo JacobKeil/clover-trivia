@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ilike } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { category, game, location, question, question_item, round } from '$lib/server/db/schema';
 import { delete_from_s3, upload_to_s3 } from '$lib/server/storage/s3';
@@ -18,6 +18,35 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
+  search_questions: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { message: 'Unauthorized' });
+
+    const search = String((await request.formData()).get('search') ?? '').trim();
+    const words = search.split(/\s+/).filter(Boolean);
+    if (!words.length) return fail(400, { message: 'Enter at least one word to search.' });
+
+    const results = await db
+      .select({
+        question_text: question.question_text,
+        correct_answer_text: question.correct_answer_text,
+        song_title: question.song_title,
+        song_artist: question.song_artist,
+        game_title: game.title
+      })
+      .from(question)
+      .innerJoin(round, eq(question.round_id, round.id))
+      .innerJoin(game, eq(round.game_id, game.id))
+      .innerJoin(location, eq(game.location_id, location.id))
+      .where(
+        and(
+          eq(location.user_id, locals.user.id),
+          ...words.map((word) => ilike(question.question_text, `%${word}%`))
+        )
+      )
+      .limit(30);
+
+    return { results, search };
+  },
   create: async ({ request, locals }) => {
     if (!locals.user) return fail(401, { message: 'Unauthorized' });
     const form_data = await request.formData();
