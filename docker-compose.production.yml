@@ -1,0 +1,65 @@
+services:
+  app:
+    image: ${APP_IMAGE:-your-dockerhub-user/clover-trivia:latest}
+    env_file: ${ENV_FILE:-.env.production}
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    env_file: ${ENV_FILE:-.env.production}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-clover_trivia}
+      POSTGRES_USER: ${POSTGRES_USER:-clover}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    depends_on:
+      - app
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_etc:/etc/letsencrypt:ro
+      - certbot_var:/var/www/certbot:ro
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    entrypoint: /bin/sh
+    command: >-
+      -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot;
+      sleep 12h & wait $${!}; done'
+    volumes:
+      - certbot_etc:/etc/letsencrypt
+      - certbot_var:/var/www/certbot
+    restart: unless-stopped
+
+  nginx_reloader:
+    image: nginx:latest
+    pid: service:nginx
+    entrypoint: /bin/sh
+    command: -c 'while :; do sleep 6h; kill -HUP 1; done'
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  certbot_etc:
+  certbot_var:
