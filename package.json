@@ -23,9 +23,6 @@
 		"seed:game": "bun run scripts/seed-obriens.ts",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
 	},
-	"overrides": {
-		"@tiptap/core": "$@tiptap/core"
-	},
 	"devDependencies": {
 		"@better-auth/cli": "~1.4.21",
 		"@eslint/js": "^10.0.1",
@@ -73,11 +70,11 @@
 		"@aws-sdk/client-s3": "^3.1095.0",
 		"@better-auth/infra": "^0.3.6",
 		"@friendofsvelte/tipex": "^0.2.0",
-		"@tiptap/core": "^3.29.2",
-		"@tiptap/extension-color": "^3.29.2",
-		"@tiptap/extension-highlight": "^3.29.2",
-		"@tiptap/extension-text-align": "^3.29.2",
-		"@tiptap/extension-text-style": "^3.29.2",
+		"@tiptap/core": "^2.27.2",
+		"@tiptap/extension-color": "^2.27.2",
+		"@tiptap/extension-highlight": "^2.27.2",
+		"@tiptap/extension-text-align": "^2.27.2",
+		"@tiptap/extension-text-style": "^2.27.2",
 		"date-fns": "^4.4.0",
 		"qrcode": "^1.5.4",
 		"svelte-dnd-action": "^0.9.75",

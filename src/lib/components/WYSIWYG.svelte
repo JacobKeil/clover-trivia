@@ -74,3 +74,23 @@
 		class="opacity-80"
 	/>
 </div>
+
+<style>
+	/* Tipex's toolbar commands create standard HTML lists. Keep their markers
+	   visible even if a global CSS reset is loaded after the editor styles. */
+	:global(.tipex-editor-section .ProseMirror ul:not([data-type='taskList'])) {
+		margin-left: 2.5rem;
+		list-style-type: disc;
+	}
+
+	:global(.tipex-editor-section .ProseMirror ol) {
+		margin-left: 2.5rem;
+		list-style-type: decimal;
+	}
+
+	/* The editable element is not an input, so the app-wide input focus reset
+	   does not apply to it. */
+	:global(.tipex-editor-section .ProseMirror:focus) {
+		outline: none;
+	}
+</style>
