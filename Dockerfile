@@ -18,6 +18,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
+# SvelteKit's adapter-node default is 512K, which is too small for image uploads.
+# The reverse proxy is configured with the same 20 MB limit.
+ENV BODY_SIZE_LIMIT=20M
 
 # Drizzle Kit is retained so this container can apply checked-in migrations on startup.
 COPY --from=build /app/package.json ./

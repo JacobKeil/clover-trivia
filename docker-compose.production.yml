@@ -5,6 +5,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 3000
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-20M}
     depends_on:
       db:
         condition: service_healthy
