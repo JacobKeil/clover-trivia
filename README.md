@@ -130,6 +130,8 @@ Fill in every value. `DATABASE_URL` must use `db` as its hostname, since the app
 Important values include:
 
 - `DOMAIN` and `ORIGIN`, using the public HTTPS domain.
+- `BODY_SIZE_LIMIT=20M` to permit multipart image uploads. Keep it aligned with
+  Nginx's `client_max_body_size` in `deploy/nginx/tls.conf.template`.
 - A unique long `POSTGRES_PASSWORD` and matching password in `DATABASE_URL`.
 - A 32+-character `BETTER_AUTH_SECRET`.
 - Google OAuth credentials, with the production callback URL registered in Google Cloud.
