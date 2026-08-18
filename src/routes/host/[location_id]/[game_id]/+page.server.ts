@@ -247,8 +247,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 							(submission) => submission.question_id === current_question.id
 						) ?? null)
 					: null,
-				tiebreaker_difference:
-					team_tiebreakers[0]?.difference_from_correct ?? null
+				tiebreaker_difference: team_tiebreakers[0]?.difference_from_correct ?? null
 			};
 		})
 		.sort(
@@ -286,10 +285,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const stump_url = new URL(`/stump/${host_game.location_id}`, url.origin).toString();
 	const stump_qr_code = await get_qr_code(stump_url);
 	const recap_url = new URL(`/recap/${host_game.id}`, url.origin).toString();
-	const recap_qr_code =
-		host_game.status === 'COMPLETED'
-			? await get_qr_code(recap_url)
-			: null;
+	const recap_qr_code = host_game.status === 'COMPLETED' ? await get_qr_code(recap_url) : null;
 	const scorecards = roster
 		.map(({ team: current_team }) => leaderboard.find((entry) => entry.team.id === current_team.id))
 		.filter((entry): entry is (typeof leaderboard)[number] => Boolean(entry));
@@ -687,7 +683,8 @@ export const actions: Actions = {
 			return fail(400, { message: 'Final standings are not currently being shown.' });
 		const form_data = await request.formData();
 		const requested_view = form_data.get('view');
-		const view = requested_view === 'FULL' || requested_view === 'RECAP' ? requested_view : 'BOTTOM';
+		const view =
+			requested_view === 'FULL' || requested_view === 'RECAP' ? requested_view : 'BOTTOM';
 		await db
 			.update(game_session)
 			.set({ phase: `FINAL_RESULTS_${view}`, updated_at: new Date() })
@@ -743,7 +740,8 @@ export const actions: Actions = {
 		});
 		if (!submission || submission.wager === null)
 			return fail(404, { message: 'Score submission not found.' });
-		const is_correct_bonus = form_data.get('bonus_correct') === 'true';
+		const is_correct_bonus =
+			submission.is_correct_primary && form_data.get('bonus_correct') === 'true';
 		const points_awarded =
 			(submission.is_correct_primary ? submission.wager : 0) +
 			(is_correct_bonus ? selected_question.bonus_points_value : 0);
@@ -751,6 +749,49 @@ export const actions: Actions = {
 			.update(team_submission)
 			.set({ is_correct_bonus, points_awarded })
 			.where(eq(team_submission.id, submission.id));
+		return { success: true };
+	},
+	clear_score: async ({ request, locals, params }) => {
+		if (!locals.user) return fail(401);
+		const host_game = await get_owned_game_access(
+			params.game_id,
+			params.location_id,
+			locals.user.id
+		);
+		if (!host_game) return fail(404);
+		const form_data = await request.formData();
+		const team_id = String(form_data.get('team_id') ?? '');
+		const question_id = String(form_data.get('question_id') ?? '');
+		const [selected_team, selected_question] = await Promise.all([
+			db.query.game_team.findFirst({
+				where: and(eq(game_team.game_id, host_game.id), eq(game_team.team_id, team_id))
+			}),
+			db.query.question.findFirst({ where: eq(question.id, question_id), with: { round: true } })
+		]);
+		if (!selected_team || !selected_question || selected_question.round.game_id !== host_game.id)
+			return fail(400, { message: 'Invalid scorecard action.' });
+
+		if (selected_question.round.round_type === 'TIEBREAKER') {
+			await db
+				.delete(tiebreaker_submission)
+				.where(
+					and(
+						eq(tiebreaker_submission.game_id, host_game.id),
+						eq(tiebreaker_submission.question_id, question_id),
+						eq(tiebreaker_submission.team_id, team_id)
+					)
+				);
+		} else {
+			await db
+				.delete(team_submission)
+				.where(
+					and(
+						eq(team_submission.game_id, host_game.id),
+						eq(team_submission.question_id, question_id),
+						eq(team_submission.team_id, team_id)
+					)
+				);
+		}
 		return { success: true };
 	},
 	score: async ({ request, locals, params }) => {
@@ -775,6 +816,7 @@ export const actions: Actions = {
 			return fail(400, { message: 'Invalid scorecard action.' });
 		const correct = form_data.get('correct') === 'true';
 		const bonus_correct =
+			correct &&
 			selected_question.question_type === 'TWO_PART_BONUS' &&
 			form_data.get('bonus_correct') === 'true';
 		const wager = Number(form_data.get('wager') ?? 0);
@@ -890,7 +932,9 @@ export const actions: Actions = {
 			);
 			return (
 				(submission.is_correct_primary ? wager : 0) +
-				(submission.is_correct_bonus ? (submission_question?.bonus_points_value ?? 0) : 0)
+				(submission.is_correct_primary && submission.is_correct_bonus
+					? (submission_question?.bonus_points_value ?? 0)
+					: 0)
 			);
 		};
 		await db.transaction(async (tx) => {

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Combobox } from 'bits-ui';
-	import { Check, CirclePlus, X } from '@lucide/svelte';
+	import { Check, CirclePlus, Trash2, X } from '@lucide/svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { Tooltip as AppTooltip } from '$lib/components/ui';
 	import ScorecardProgress from './ScorecardProgress.svelte';
 	import ManageScoresDialog from './ManageScoresDialog.svelte';
 	import type { PageData } from './$types';
@@ -222,7 +223,23 @@
 										{needs_scoring ? 'Needs scoring' : 'Scored'}
 									</p>{/if}
 							</div>
-							<strong class="font-[Kanit] text-xl text-[#1d684e]">{entry.points}</strong>
+							<div class="flex items-center gap-2">
+								{#if data.current_question && !needs_scoring}
+									<form use:enhance={score_enhance} method="POST" action="?/clear_score">
+										<input type="hidden" name="team_id" value={entry.team.id} />
+										<input type="hidden" name="question_id" value={data.current_question.id} />
+										<AppTooltip label="Clear score">
+											<button
+												type="submit"
+												aria-label={`Clear ${entry.team.name}'s score for this question`}
+												class="grid size-7 place-items-center rounded-md border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-600 hover:text-white"
+												><Trash2 size={14} /></button
+											>
+										</AppTooltip>
+									</form>
+								{/if}
+								<strong class="font-[Kanit] text-xl text-[#1d684e]">{entry.points}</strong>
+							</div>
 						</div>
 						{#if data.current_question && current_is_standard}<div
 								class="mt-3 border-t border-[#edf1ed] pt-3"
@@ -280,7 +297,7 @@
 										use:enhance={score_enhance}
 										method="POST"
 										action="?/score"
-									class="ml-auto inline-flex gap-1"
+										class="ml-auto inline-flex gap-1"
 									>
 										<input type="hidden" name="team_id" value={entry.team.id} /><input
 											type="hidden"
@@ -352,20 +369,25 @@
 										Already scored · {entry.current_submission.items_correct}/{data
 											.current_question!.max_items} correct · {entry.current_submission
 											.points_awarded} points
-									</div>{/if}<div class="flex w-full items-end gap-2"><label class="text-xs font-semibold"
-									>Correct items <input
-										name="items_correct"
-										type="number"
-										min="0"
-										max={data.current_question!.max_items}
-										value={entry.current_submission?.items_correct ?? 0}
-										class="mt-1 block h-9 w-20 rounded-md border border-[#d6e1d8] px-2"
-									/></label
-								><button
-									aria-label={entry.current_submission ? 'Update halftime score' : 'Save halftime score'}
-									class="ml-auto grid size-9 cursor-pointer place-items-center rounded-md border border-emerald-600 bg-white text-emerald-700 transition-colors hover:bg-emerald-50"
-									><Check size={17} /></button
-								></div>
+									</div>{/if}
+								<div class="flex w-full items-end gap-2">
+									<label class="text-xs font-semibold"
+										>Correct items <input
+											name="items_correct"
+											type="number"
+											min="0"
+											max={data.current_question!.max_items}
+											value={entry.current_submission?.items_correct ?? 0}
+											class="mt-1 block h-9 w-20 rounded-md border border-[#d6e1d8] px-2"
+										/></label
+									><button
+										aria-label={entry.current_submission
+											? 'Update halftime score'
+											: 'Save halftime score'}
+										class="ml-auto grid size-9 cursor-pointer place-items-center rounded-md border border-emerald-600 bg-white text-emerald-700 transition-colors hover:bg-emerald-50"
+										><Check size={17} /></button
+									>
+								</div>
 							</form>
 						{:else if current_is_final}<form
 								use:enhance={score_enhance}
@@ -397,45 +419,49 @@
 											>{entry.current_submission.points_awarded > 0 ? '+' : ''}{entry
 												.current_submission.points_awarded} pts</span
 										>
-									</div>{/if}<div class="flex w-full items-end gap-2"><label class="text-xs font-semibold"
-									>Wager <input
-										required
-										name="wager"
-										type="number"
-										min={data.current_round?.min_wager ?? 0}
-										max={data.current_round?.max_wager ?? 50}
-										value={final_wager_value(
-											entry.team.id,
-											entry.current_submission?.wager ?? null
-										)}
-										oninput={(event) =>
-											(final_wager_drafts[entry.team.id] = event.currentTarget.value)}
-										class="mt-1 block h-9 w-20 rounded-md border border-[#d6e1d8] px-2"
-									/></label
-								><div class="ml-auto inline-flex gap-1.5">
-									<button
-										name="correct"
-										value="true"
-										aria-label="Mark final answer correct"
-										class="grid size-9 cursor-pointer place-items-center rounded-md border border-emerald-600 font-bold transition-colors {entry
-											.current_submission?.is_correct_primary
-											? 'bg-emerald-600 text-white'
-											: 'bg-white text-emerald-700 hover:bg-emerald-50'}"
+									</div>{/if}
+								<div class="flex w-full items-end gap-2">
+									<label class="text-xs font-semibold"
+										>Wager <input
+											required
+											name="wager"
+											type="number"
+											min={data.current_round?.min_wager ?? 0}
+											max={data.current_round?.max_wager ?? 50}
+											value={final_wager_value(
+												entry.team.id,
+												entry.current_submission?.wager ?? null
+											)}
+											oninput={(event) =>
+												(final_wager_drafts[entry.team.id] = event.currentTarget.value)}
+											class="mt-1 block h-9 w-20 rounded-md border border-[#d6e1d8] px-2"
+										/></label
 									>
-										<Check size={17} />
-									</button>
-									<button
-										name="correct"
-										value="false"
-										aria-label="Mark final answer incorrect"
-										class="grid size-9 cursor-pointer place-items-center rounded-md border border-rose-600 font-bold transition-colors {entry
-											.current_submission && !entry.current_submission.is_correct_primary
-											? 'bg-rose-600 text-white'
-											: 'bg-white text-rose-700 hover:bg-rose-50'}"
-									>
-										<X size={17} />
-									</button>
-								</div></div>
+									<div class="ml-auto inline-flex gap-1.5">
+										<button
+											name="correct"
+											value="true"
+											aria-label="Mark final answer correct"
+											class="grid size-9 cursor-pointer place-items-center rounded-md border border-emerald-600 font-bold transition-colors {entry
+												.current_submission?.is_correct_primary
+												? 'bg-emerald-600 text-white'
+												: 'bg-white text-emerald-700 hover:bg-emerald-50'}"
+										>
+											<Check size={17} />
+										</button>
+										<button
+											name="correct"
+											value="false"
+											aria-label="Mark final answer incorrect"
+											class="grid size-9 cursor-pointer place-items-center rounded-md border border-rose-600 font-bold transition-colors {entry.current_submission &&
+											!entry.current_submission.is_correct_primary
+												? 'bg-rose-600 text-white'
+												: 'bg-white text-rose-700 hover:bg-rose-50'}"
+										>
+											<X size={17} />
+										</button>
+									</div>
+								</div>
 							</form>
 						{:else if current_is_tiebreaker}<form
 								use:enhance={score_enhance}
@@ -451,24 +477,26 @@
 										class="w-full rounded-md bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"
 									>
 										Submission recorded: {entry.current_tiebreaker_submission.submitted_answer}
-									</div>{/if}<div class="flex w-full items-end gap-2"><label class="text-xs font-semibold"
-									>Numeric answer <input
-										required
-										name="submitted_answer"
-										type="number"
-										value={entry.current_tiebreaker_submission?.submitted_answer ?? ''}
-										class="mt-1 block h-9 w-28 rounded-md border border-[#d6e1d8] px-2"
-									/></label
-								><button
-									aria-label={entry.current_tiebreaker_submission
-										? 'Update tiebreaker submission'
-										: 'Record tiebreaker submission'}
-									class="ml-auto grid size-9 cursor-pointer place-items-center rounded-md border border-emerald-600 transition-colors {entry
-										.current_tiebreaker_submission
-										? 'bg-emerald-600 text-white hover:bg-emerald-700'
-										: 'bg-white text-emerald-700 hover:bg-emerald-50'}"
-									><Check size={17} /></button
-								></div>
+									</div>{/if}
+								<div class="flex w-full items-end gap-2">
+									<label class="text-xs font-semibold"
+										>Numeric answer <input
+											required
+											name="submitted_answer"
+											type="number"
+											value={entry.current_tiebreaker_submission?.submitted_answer ?? ''}
+											class="mt-1 block h-9 w-28 rounded-md border border-[#d6e1d8] px-2"
+										/></label
+									><button
+										aria-label={entry.current_tiebreaker_submission
+											? 'Update tiebreaker submission'
+											: 'Record tiebreaker submission'}
+										class="ml-auto grid size-9 cursor-pointer place-items-center rounded-md border border-emerald-600 transition-colors {entry.current_tiebreaker_submission
+											? 'bg-emerald-600 text-white hover:bg-emerald-700'
+											: 'bg-white text-emerald-700 hover:bg-emerald-50'}"
+										><Check size={17} /></button
+									>
+								</div>
 							</form>{/if}
 					</article>{/each}
 			</div>{:else if data.current_question}<div

@@ -5,5 +5,5 @@ export type CreateLocationForm = {
 	picture_file: File | null;
 	location_rules: string | undefined;
 	is_active: boolean;
-  default_question_count: number;
+	default_question_count: number;
 };

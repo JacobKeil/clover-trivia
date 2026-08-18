@@ -2,19 +2,18 @@
 	import '../app.css';
 	import '@friendofsvelte/tipex/styles/index.css';
 	import { page } from '$app/state';
-	import { CloverMark } from '$lib/components';
+	import { CloverMark, NetworkActivityIndicator } from '$lib/components';
 
 	let { children, data } = $props();
 	let is_presentation_popout = $derived(page.url.searchParams.get('presentation') === '1');
-
-	$inspect({ data });
 </script>
 
 <main class="min-h-screen bg-white font-sans text-slate-900">
+	<NetworkActivityIndicator />
 	{#if !is_presentation_popout}<nav
 			class="sticky top-0 z-50 border-b border-[#e6ece7] bg-white/90 backdrop-blur-md"
 		>
-			<div class="mx-auto flex h-[72px] w-full max-w-7xl items-center justify-between px-5">
+			<div class="mx-auto flex h-18 w-full max-w-7xl items-center justify-between px-5">
 				<a href="/" class="group flex items-center gap-2.5 text-[#143f33]">
 					<span
 						class="grid size-9 place-items-center rounded-lg bg-[#176249] text-[#d6f1df] shadow-[0_5px_12px_#17624924] transition group-hover:-rotate-6"

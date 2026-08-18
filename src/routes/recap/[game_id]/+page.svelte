@@ -30,7 +30,10 @@
 			{data.game.title}
 		</h1>
 		<p class="mt-2 text-sm text-[#71837a]">
-			{data.game.location.name} · {data.game.location.address}
+			<a href="/locations/{data.game.location.id}" class="font-bold text-[#267356] hover:underline"
+				>{data.game.location.name}</a
+			>
+			· {data.game.location.address}
 		</p>
 		<p class="mt-1 text-sm font-semibold text-[#527466]">
 			{format(new Date(data.game.scheduled_at), 'EEEE, MMMM d, yyyy')}

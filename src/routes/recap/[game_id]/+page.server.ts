@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			scheduled_at: true
 		},
 		with: {
-			location: { columns: { name: true, address: true, logo_url: true } },
+			location: { columns: { id: true, name: true, address: true, logo_url: true } },
 			rounds: {
 				orderBy: [asc(round.order)],
 				columns: { id: true, name: true, round_type: true, order: true },

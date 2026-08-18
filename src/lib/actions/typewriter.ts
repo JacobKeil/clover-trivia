@@ -3,10 +3,7 @@ interface TypewriterParams {
 	delay?: number;
 }
 
-let phrases = [
-	'Keep track of your trivia games.',
-	'Own multiple locations.'
-];
+let phrases = ['Keep track of your trivia games.', 'Own multiple locations.'];
 
 export default function (node: HTMLElement, { speed = 100, delay = 2000 }: TypewriterParams) {
 	let current_phrase_index = 0;

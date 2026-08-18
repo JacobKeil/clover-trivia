@@ -164,6 +164,29 @@ docker compose --env-file .env.production -f docker-compose.production.yml ps
 docker compose --env-file .env.production -f docker-compose.production.yml logs -f app
 ```
 
+### View production data with Drizzle Studio
+
+Studio is an on-demand service and is bound only to the server's loopback interface;
+do not expose its port publicly. On the server, start it with:
+
+```sh
+docker compose --env-file .env.production -f docker-compose.production.yml --profile studio up -d studio
+```
+
+From your computer, create an SSH tunnel (replace the SSH user and server):
+
+```sh
+ssh -N -L 4983:127.0.0.1:4983 your-user@your-server
+```
+
+While that tunnel is running, open `https://local.drizzle.studio` in your browser.
+Studio has write access to the production database, so use it carefully. Stop the
+service when finished:
+
+```sh
+docker compose --env-file .env.production -f docker-compose.production.yml --profile studio stop studio
+```
+
 ## GitHub Actions deployment
 
 Pushing to `main` runs `.github/workflows/deploy.yml`. The workflow validates the app, publishes both `latest` and commit-SHA Docker images to Docker Hub, then connects to the Linode server to pull and start that exact image.

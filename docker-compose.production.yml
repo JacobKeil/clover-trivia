@@ -27,6 +27,17 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  studio:
+    image: ${APP_IMAGE:-your-dockerhub-user/clover-trivia:latest}
+    env_file: ${ENV_FILE:-.env.production}
+    command: bunx --no-install drizzle-kit studio --host 0.0.0.0 --port 4983
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:4983:4983'
+    profiles: ['studio']
+
   nginx:
     image: nginx:latest
     depends_on:

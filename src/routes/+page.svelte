@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		ArrowRight,
-		BarChart3,
+		ChartColumn,
 		Check,
 		ExternalLink,
 		MapPin,
@@ -24,7 +24,7 @@
 	<section
 		class="mx-auto grid min-h-[calc(100vh-7.1rem)] max-w-7xl grid-cols-1 items-center gap-4 px-5 py-10 md:grid-cols-[.94fr_1.06fr] md:gap-16 md:py-16"
 	>
-		<div class="max-w-[590px]">
+		<div class="max-w-147.5">
 			<div
 				class="inline-flex items-center gap-2 text-[.72rem] font-extrabold tracking-[.11em] text-[#17735c] uppercase"
 			>
@@ -35,7 +35,7 @@
 			>
 				Trivia nights that <span class="text-[#278667]">run themselves.</span>
 			</h1>
-			<p class="mt-6 max-w-[515px] text-[1.05rem] leading-7 text-[#52675f]">
+			<p class="mt-6 max-w-128.75 text-[1.05rem] leading-7 text-[#52675f]">
 				Clover gives every host one calm, capable home for building games, controlling the room, and
 				growing a loyal trivia crowd.
 			</p>
@@ -66,7 +66,7 @@
 			</div>
 		</div>
 
-		<div class="relative mx-auto w-full max-w-[650px] pt-8 pr-0 pb-11 pl-0 md:pl-5">
+		<div class="relative mx-auto w-full max-w-162.5 pt-8 pr-0 pb-11 pl-0 md:pl-5">
 			<div
 				class="absolute top-[4%] right-[1%] bottom-[2%] left-[8%] -rotate-6 rounded-[45%_55%_50%_32%] bg-[#d9ead6]"
 			></div>
@@ -79,13 +79,13 @@
 							class="size-1.5 rounded-full bg-[#d2d8d2]"
 						></i><i class="size-1.5 rounded-full bg-[#d2d8d2]"></i>
 					</div>
-					<div class="max-w-[300px] flex-1 rounded bg-[#e9ede8] px-2 py-1 text-[.61rem]">
+					<div class="max-w-75 flex-1 rounded bg-[#e9ede8] px-2 py-1 text-[.61rem]">
 						present.clovertrivia.com / harbor-house
 					</div>
 					<ExternalLink size={15} />
 				</div>
 				<div
-					class="relative flex min-h-[300px] flex-col items-center justify-center bg-[radial-gradient(circle_at_82%_18%,#2b7d68_0,transparent_26%),linear-gradient(135deg,#0a3e32,#165f4e)] p-7 text-center text-white md:min-h-[370px]"
+					class="relative flex min-h-75 flex-col items-center justify-center bg-[radial-gradient(circle_at_82%_18%,#2b7d68_0,transparent_26%),linear-gradient(135deg,#0a3e32,#165f4e)] p-7 text-center text-white md:min-h-92.5"
 				>
 					<div
 						class="absolute top-5 right-5 left-5 flex justify-between text-[.56rem] font-extrabold tracking-[.12em] text-[#a5d0be]"
@@ -101,11 +101,11 @@
 						CATEGORY · WORLD WONDERS
 					</p>
 					<h2
-						class="mt-3 max-w-[460px] font-[Kanit] text-[clamp(1.55rem,3vw,2.65rem)] leading-[1.1] font-medium"
+						class="mt-3 max-w-115 font-[Kanit] text-[clamp(1.55rem,3vw,2.65rem)] leading-[1.1] font-medium"
 					>
 						Which city is home to the ancient Colosseum?
 					</h2>
-					<div class="mt-5 h-0.5 w-[70px] bg-[#88c7aa]"></div>
+					<div class="mt-5 h-0.5 w-17.5 bg-[#88c7aa]"></div>
 					<div
 						class="absolute right-5 bottom-4 left-5 flex justify-between text-[.51rem] font-extrabold tracking-[.12em] text-[#96bbae]"
 					>
@@ -114,7 +114,7 @@
 				</div>
 			</div>
 			<div
-				class="absolute right-0 bottom-0 flex min-w-[220px] items-center gap-3 rounded-lg border border-[#e6ebe5] bg-white px-3 py-3 shadow-[0_14px_30px_#173b2d1a] md:right-[-.5rem] md:min-w-[255px]"
+				class="absolute right-0 bottom-0 flex min-w-55 items-center gap-3 rounded-lg border border-[#e6ebe5] bg-white px-3 py-3 shadow-[0_14px_30px_#173b2d1a] md:right-2 md:min-w-63.75"
 			>
 				<div class="grid size-8 place-items-center rounded-md bg-[#e2f1e8] text-[#1b7659]">
 					<MonitorUp size={19} />
@@ -142,7 +142,7 @@
 	</section>
 
 	<section class="mx-auto max-w-7xl px-5 py-20 md:py-28" id="how-it-works">
-		<div class="mx-auto mb-12 max-w-[620px] text-center">
+		<div class="mx-auto mb-12 max-w-155 text-center">
 			<div
 				class="inline-flex items-center gap-2 text-[.72rem] font-extrabold tracking-[.11em] text-[#17735c] uppercase"
 			>
@@ -153,14 +153,14 @@
 			>
 				Spend less time managing.<br /><span class="text-[#278667]">Make more room for magic.</span>
 			</h2>
-			<p class="mx-auto mt-4 max-w-[510px] leading-7 text-[#64776d]">
+			<p class="mx-auto mt-4 max-w-127.5 leading-7 text-[#64776d]">
 				From first question to final score, Clover handles the details that pull you away from your
 				crowd.
 			</p>
 		</div>
 		<div class="grid gap-4 md:grid-cols-[1.16fr_.92fr_.92fr]">
 			<article
-				class="relative flex min-h-[300px] flex-col overflow-hidden rounded-xl border border-[#dde5dc] bg-[#dcefe2] p-6 md:min-h-[355px]"
+				class="relative flex min-h-75 flex-col overflow-hidden rounded-xl border border-[#dde5dc] bg-[#dcefe2] p-6 md:min-h-88.75"
 			>
 				<div class="mb-5 grid size-10 place-items-center rounded-lg bg-[#17624a] text-white">
 					<MonitorUp size={22} />
@@ -172,7 +172,7 @@
 					<h3 class="my-2 font-[Kanit] text-[1.65rem] leading-[1.05] font-medium">
 						Your game, on every screen.
 					</h3>
-					<p class="max-w-[390px] text-sm leading-6 text-[#63766d]">
+					<p class="max-w-97.5 text-sm leading-6 text-[#63766d]">
 						Pop out a polished presentation for your venue. Advance a question on your dashboard and
 						the room sees it instantly.
 					</p>
@@ -189,7 +189,7 @@
 				</div>
 			</article>
 			<article
-				class="flex min-h-[300px] flex-col overflow-hidden rounded-xl border border-[#dde5dc] bg-[#fbfcf8] p-6 md:min-h-[355px]"
+				class="flex min-h-75 flex-col overflow-hidden rounded-xl border border-[#dde5dc] bg-[#fbfcf8] p-6 md:min-h-88.75"
 			>
 				<div class="mb-5 grid size-10 place-items-center rounded-lg bg-[#df8059] text-white">
 					<MapPin size={22} />
@@ -207,10 +207,10 @@
 				>
 			</article>
 			<article
-				class="flex min-h-[300px] flex-col overflow-hidden rounded-xl border border-[#dde5dc] bg-[#fbfcf8] p-6 md:min-h-[355px]"
+				class="flex min-h-75 flex-col overflow-hidden rounded-xl border border-[#dde5dc] bg-[#fbfcf8] p-6 md:min-h-88.75"
 			>
 				<div class="mb-5 grid size-10 place-items-center rounded-lg bg-[#7166ae] text-white">
-					<BarChart3 size={22} />
+					<ChartColumn size={22} />
 				</div>
 				<p class="text-[.61rem] font-extrabold tracking-[.13em] text-[#49816b]">
 					LOOK BACK, GET BETTER
@@ -244,12 +244,12 @@
 	<section
 		class="-mx-1 grid gap-12 bg-[#eaf1e8] px-5 py-16 md:grid-cols-2 md:items-center md:gap-[7vw] md:px-[max(1.25rem,5vw)]"
 	>
-		<div class="relative mx-auto min-h-[290px] w-full max-w-[550px] md:min-h-[330px]">
+		<div class="relative mx-auto min-h-72.5 w-full max-w-137.5 md:min-h-82.5">
 			<div
 				class="absolute top-0 right-0 left-[2%] rounded-xl border border-[#e4ebe4] bg-white p-5 text-[#23463a] shadow-[0_20px_35px_#315b4919] md:left-[7%] md:p-6"
 			>
 				<div
-					class="flex items-center justify-between text-[.55rem] font-extrabold tracking-[.1em] text-[#81948a]"
+					class="flex items-center justify-between text-[.55rem] font-extrabold tracking-widest text-[#81948a]"
 				>
 					<span>TONIGHT’S GAME</span><i class="size-2 rounded-full bg-[#59b976]"></i>
 				</div>
@@ -290,7 +290,7 @@
 			>
 				Walk in prepared.<br />Walk out proud.
 			</h2>
-			<p class="mt-5 max-w-[490px] leading-7 text-[#63766d]">
+			<p class="mt-5 max-w-122.5 leading-7 text-[#63766d]">
 				Build your game ahead of time, then host with everything exactly where you need it. No
 				frantic tab switching. No lost scores. Just a room full of people having a great night.
 			</p>
@@ -315,9 +315,9 @@
 	<section
 		class="relative mx-1 mt-16 mb-5 overflow-hidden rounded-2xl bg-[#12543f] text-center text-white md:mx-5 md:mt-24"
 	>
-		<div class="absolute -top-45 -left-18 size-[350px] rounded-full border border-[#4e8d75]"></div>
+		<div class="absolute -top-45 -left-18 size-87.5 rounded-full border border-[#4e8d75]"></div>
 		<div
-			class="absolute -right-35 -bottom-75 size-[450px] rounded-full border border-[#4e8d75]"
+			class="absolute -right-35 -bottom-75 size-112.5 rounded-full border border-[#4e8d75]"
 		></div>
 		<div class="relative z-10 px-4 py-16 md:py-22">
 			<div class="text-2xl text-[#a7d8bd]">✦</div>

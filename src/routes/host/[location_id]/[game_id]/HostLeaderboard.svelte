@@ -12,7 +12,7 @@
 </script>
 
 <aside
-	class="flex min-h-[460px] flex-col overflow-hidden rounded-2xl border border-[#dce7df] bg-white p-5 shadow-sm lg:min-h-0 lg:self-start"
+	class="flex min-h-115 flex-col overflow-hidden rounded-2xl border border-[#dce7df] bg-white p-5 shadow-sm lg:min-h-0 lg:self-start"
 	style:min-height={max_height ? `${max_height}px` : undefined}
 	style:max-height={max_height ? `${max_height}px` : undefined}
 >

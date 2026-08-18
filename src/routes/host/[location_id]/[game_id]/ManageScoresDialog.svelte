@@ -130,175 +130,176 @@
 			{/if}
 			{#if is_loading}<p class="mt-5 text-sm text-[#71837a]">Loading saved scores…</p>
 			{:else if load_error}<p
-				class="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
-			>
-				{load_error}
-			</p>{:else}<div class="mt-5 flex flex-wrap gap-2 border-b border-[#e8eee9] pb-4">
-				{#each scorecards as entry}<button
-						type="button"
-						onclick={() => (managed_team_id = entry.team.id)}
-						class="rounded-md px-3 py-2 text-xs font-bold {managed_scorecard?.team.id ===
-						entry.team.id
-							? 'bg-[#176249] text-white'
-							: 'bg-[#f1f6f1] text-[#315c4d]'}">{entry.team.name} · {entry.points}</button
-					>{/each}
-			</div>
-			{#if managed_scorecard}{#if managed_scorecard_has_submissions}<div class="mt-5 grid gap-4">
-						{#each managed_scorecard.score_history as history_round}
-							{#if history_round.questions.some((question) => question.submission || question.tiebreaker_submission)}<section
-									class="rounded-xl border border-[#e1e9e3] p-4"
-								>
-									<h3 class="font-[Kanit] text-xl font-medium text-[#1d684e]">
-										{history_round.label}
-									</h3>
-									<div class="mt-3 grid gap-2">
-										{#each history_round.questions as history_question}
-											{#if history_question.submission || history_question.tiebreaker_submission}<div
-													class="flex flex-wrap items-center gap-2 rounded-lg bg-[#f7faf7] p-2.5 text-xs"
-												>
-													<span class="font-extrabold text-[#527466]"
-														>Question {history_question.order}</span
+					class="mt-5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+				>
+					{load_error}
+				</p>{:else}<div class="mt-5 flex flex-wrap gap-2 border-b border-[#e8eee9] pb-4">
+					{#each scorecards as entry}<button
+							type="button"
+							onclick={() => (managed_team_id = entry.team.id)}
+							class="rounded-md px-3 py-2 text-xs font-bold {managed_scorecard?.team.id ===
+							entry.team.id
+								? 'bg-[#176249] text-white'
+								: 'bg-[#f1f6f1] text-[#315c4d]'}">{entry.team.name} · {entry.points}</button
+						>{/each}
+				</div>
+				{#if managed_scorecard}{#if managed_scorecard_has_submissions}<div class="mt-5 grid gap-4">
+							{#each managed_scorecard.score_history as history_round}
+								{#if history_round.questions.some((question) => question.submission || question.tiebreaker_submission)}<section
+										class="rounded-xl border border-[#e1e9e3] p-4"
+									>
+										<h3 class="font-[Kanit] text-xl font-medium text-[#1d684e]">
+											{history_round.label}
+										</h3>
+										<div class="mt-3 grid gap-2">
+											{#each history_round.questions as history_question}
+												{#if history_question.submission || history_question.tiebreaker_submission}<div
+														class="flex flex-wrap items-center gap-2 rounded-lg bg-[#f7faf7] p-2.5 text-xs"
 													>
-													{#if history_round.round_type === 'STANDARD' || history_round.round_type === 'FINAL'}<form
-															use:enhance={manage_score_enhance}
-															method="POST"
-															action="?/score"
-															class="ml-auto flex flex-wrap items-center gap-1"
+														<span class="font-extrabold text-[#527466]"
+															>Question {history_question.order}</span
 														>
-															<input
-																type="hidden"
-																name="team_id"
-																value={managed_scorecard.team.id}
-															/><input
-																type="hidden"
-																name="question_id"
-																value={history_question.id}
-															/>{#if history_round.round_type === 'STANDARD'}<input
+														{#if history_round.round_type === 'STANDARD' || history_round.round_type === 'FINAL'}<form
+																use:enhance={manage_score_enhance}
+																method="POST"
+																action="?/score"
+																class="ml-auto flex flex-wrap items-center gap-1"
+															>
+																<input
 																	type="hidden"
-																	name="wager"
-																	value={history_question.submission!.wager ?? 0}
-																/>
-																<div
-																	class="inline-flex overflow-hidden rounded-md border border-[#c8ddce]"
-																>
-																	{#each data.game.standard_wager_options as wager}<button
-																			type="submit"
-																			name="target_wager"
-																			value={wager}
-																			formaction="?/swap_wager"
-																			class="border-r border-[#c8ddce] px-2.5 py-2 font-bold last:border-r-0 {history_question
-																				.submission!.wager === wager
-																				? 'bg-[#176249] text-white'
-																				: 'bg-white text-[#246d52] hover:bg-[#f2f8f3]'}"
-																			aria-label={`Set wager to ${wager} points`}>{wager}</button
-																		>{/each}
-																</div>{:else}<input
-																	name="wager"
-																	type="number"
-																	value={history_question.submission!.wager ?? 0}
-																	class="h-8 w-16 rounded-md border border-[#d6e1d8] px-2"
-																/>{/if}
-															{#if history_question.question_type === 'TWO_PART_BONUS'}
-																<label
-																	class="order-first inline-flex items-center gap-1.5 rounded-md bg-sky-50 px-2 py-1.5 font-bold text-sky-800"
-																>
-																	<input
-																		type="checkbox"
-																		name="bonus_correct"
-																		value="true"
-																		checked={history_question.submission!.is_correct_bonus}
-																		onchange={(event) =>
-																			void update_bonus_score(
-																				managed_scorecard.team.id,
-																				history_question.id,
-																				event.currentTarget.checked
-																			)}
+																	name="team_id"
+																	value={managed_scorecard.team.id}
+																/><input
+																	type="hidden"
+																	name="question_id"
+																	value={history_question.id}
+																/>{#if history_round.round_type === 'STANDARD'}<input
+																		type="hidden"
+																		name="wager"
+																		value={history_question.submission!.wager ?? 0}
 																	/>
-																	+{history_question.bonus_points_value} bonus
-																</label>
-															{/if}
-															<button
-																name="correct"
-																value="true"
-																class="rounded-md px-2.5 py-2 font-bold {history_question
-																	.submission!.is_correct_primary
-																	? 'bg-emerald-600 text-white'
-																	: 'bg-emerald-50 text-emerald-700'}">Correct</button
+																	<div
+																		class="inline-flex overflow-hidden rounded-md border border-[#c8ddce]"
+																	>
+																		{#each data.game.standard_wager_options as wager}<button
+																				type="submit"
+																				name="target_wager"
+																				value={wager}
+																				formaction="?/swap_wager"
+																				class="border-r border-[#c8ddce] px-2.5 py-2 font-bold last:border-r-0 {history_question
+																					.submission!.wager === wager
+																					? 'bg-[#176249] text-white'
+																					: 'bg-white text-[#246d52] hover:bg-[#f2f8f3]'}"
+																				aria-label={`Set wager to ${wager} points`}>{wager}</button
+																			>{/each}
+																	</div>{:else}<input
+																		name="wager"
+																		type="number"
+																		value={history_question.submission!.wager ?? 0}
+																		class="h-8 w-16 rounded-md border border-[#d6e1d8] px-2"
+																	/>{/if}
+																{#if history_question.question_type === 'TWO_PART_BONUS'}
+																	<label
+																		class="order-first inline-flex items-center gap-1.5 rounded-md bg-sky-50 px-2 py-1.5 font-bold text-sky-800"
+																	>
+																		<input
+																			type="checkbox"
+																			name="bonus_correct"
+																			value="true"
+																			checked={history_question.submission!.is_correct_bonus}
+																			disabled={!history_question.submission!.is_correct_primary}
+																			onchange={(event) =>
+																				void update_bonus_score(
+																					managed_scorecard.team.id,
+																					history_question.id,
+																					event.currentTarget.checked
+																				)}
+																		/>
+																		+{history_question.bonus_points_value} bonus
+																	</label>
+																{/if}
+																<button
+																	name="correct"
+																	value="true"
+																	class="rounded-md px-2.5 py-2 font-bold {history_question
+																		.submission!.is_correct_primary
+																		? 'bg-emerald-600 text-white'
+																		: 'bg-emerald-50 text-emerald-700'}">Correct</button
+																>
+																<button
+																	name="correct"
+																	value="false"
+																	class="rounded-md px-2.5 py-2 font-bold {!history_question
+																		.submission!.is_correct_primary
+																		? 'bg-rose-600 text-white'
+																		: 'bg-rose-50 text-rose-700'}">Incorrect</button
+																>
+															</form>
+														{:else if history_round.round_type === 'HALFTIME'}<form
+																use:enhance={manage_score_enhance}
+																method="POST"
+																action="?/score"
+																class="ml-auto flex items-center gap-1"
 															>
-															<button
-																name="correct"
-																value="false"
-																class="rounded-md px-2.5 py-2 font-bold {!history_question
-																	.submission!.is_correct_primary
-																	? 'bg-rose-600 text-white'
-																	: 'bg-rose-50 text-rose-700'}">Incorrect</button
+																<input
+																	type="hidden"
+																	name="team_id"
+																	value={managed_scorecard.team.id}
+																/><input
+																	type="hidden"
+																	name="question_id"
+																	value={history_question.id}
+																/><input type="hidden" name="correct" value="true" /><input
+																	name="items_correct"
+																	type="number"
+																	min="0"
+																	max={history_question.max_items}
+																	value={history_question.submission!.items_correct}
+																	class="h-8 w-14 rounded-md border border-[#d6e1d8] px-2"
+																/><button
+																	class="rounded-md bg-[#176249] px-2.5 py-2 font-bold text-white"
+																	>Update</button
+																>
+															</form>
+														{:else}<form
+																use:enhance={manage_score_enhance}
+																method="POST"
+																action="?/tiebreaker"
+																class="ml-auto flex items-center gap-1"
 															>
-														</form>
-													{:else if history_round.round_type === 'HALFTIME'}<form
-															use:enhance={manage_score_enhance}
-															method="POST"
-															action="?/score"
-															class="ml-auto flex items-center gap-1"
-														>
-															<input
-																type="hidden"
-																name="team_id"
-																value={managed_scorecard.team.id}
-															/><input
-																type="hidden"
-																name="question_id"
-																value={history_question.id}
-															/><input type="hidden" name="correct" value="true" /><input
-																name="items_correct"
-																type="number"
-																min="0"
-																max={history_question.max_items}
-																value={history_question.submission!.items_correct}
-																class="h-8 w-14 rounded-md border border-[#d6e1d8] px-2"
-															/><button
-																class="rounded-md bg-[#176249] px-2.5 py-2 font-bold text-white"
-																>Update</button
-															>
-														</form>
-													{:else}<form
-															use:enhance={manage_score_enhance}
-															method="POST"
-															action="?/tiebreaker"
-															class="ml-auto flex items-center gap-1"
-														>
-															<input
-																type="hidden"
-																name="team_id"
-																value={managed_scorecard.team.id}
-															/><input
-																type="hidden"
-																name="question_id"
-																value={history_question.id}
-															/><input
-																name="submitted_answer"
-																type="number"
-																value={history_question.tiebreaker_submission?.submitted_answer ??
-																	''}
-																class="h-8 w-20 rounded-md border border-[#d6e1d8] px-2"
-															/><button
-																class="rounded-md bg-[#176249] px-2.5 py-2 font-bold text-white"
-																>Update</button
-															>
-														</form>{/if}
-												</div>{/if}
-										{/each}
-									</div>
-								</section>{/if}
-						{/each}
-					</div>{:else}<p
+																<input
+																	type="hidden"
+																	name="team_id"
+																	value={managed_scorecard.team.id}
+																/><input
+																	type="hidden"
+																	name="question_id"
+																	value={history_question.id}
+																/><input
+																	name="submitted_answer"
+																	type="number"
+																	value={history_question.tiebreaker_submission?.submitted_answer ??
+																		''}
+																	class="h-8 w-20 rounded-md border border-[#d6e1d8] px-2"
+																/><button
+																	class="rounded-md bg-[#176249] px-2.5 py-2 font-bold text-white"
+																	>Update</button
+																>
+															</form>{/if}
+													</div>{/if}
+											{/each}
+										</div>
+									</section>{/if}
+							{/each}
+						</div>{:else}<p
+							class="mt-5 rounded-xl border border-dashed border-[#cfded2] bg-[#f7faf7] px-4 py-8 text-center text-sm font-medium text-[#71837a]"
+						>
+							No scores submitted yet.
+						</p>{/if}{:else}<p
 						class="mt-5 rounded-xl border border-dashed border-[#cfded2] bg-[#f7faf7] px-4 py-8 text-center text-sm font-medium text-[#71837a]"
 					>
-						No scores submitted yet.
-					</p>{/if}{:else}<p
-					class="mt-5 rounded-xl border border-dashed border-[#cfded2] bg-[#f7faf7] px-4 py-8 text-center text-sm font-medium text-[#71837a]"
-				>
-					No teams have been added yet.
-				</p>{/if}
+						No teams have been added yet.
+					</p>{/if}
 			{/if}
 		</Dialog.Content>
 	</Dialog.Portal>

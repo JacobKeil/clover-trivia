@@ -137,6 +137,9 @@
 				</p>
 				<h2 class="mt-1 font-[Kanit] text-3xl font-medium tracking-[-.03em]">Recent games</h2>
 			</div>
+			<a href="/games" class="inline-flex items-center gap-1 text-sm font-bold text-[#27735a]"
+				>View all games →</a
+			>
 		</div>
 		{#if data.recent_games.length > 0}<div
 				class="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-3"

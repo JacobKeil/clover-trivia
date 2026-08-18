@@ -286,8 +286,6 @@
 		pending_round_index = null;
 		is_delete_round_dialog_open = false;
 	}
-
-	$inspect({ form_state });
 </script>
 
 <svelte:head>

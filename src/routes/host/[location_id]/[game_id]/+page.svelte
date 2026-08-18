@@ -88,21 +88,21 @@
 			? 'FINAL STANDINGS'
 			: is_final_results_recap
 				? 'GAME RECAP'
-			: data.session.phase === 'RULES'
-				? 'Trivia Rules'
-				: data.session.phase === 'ROUND_INTRO'
-					? data.current_round?.name
-					: data.session.phase === 'CATEGORIES'
-						? current_is_standard
-							? `Round ${standard_round_number} Categories`
-							: 'CATEGORIES'
-						: data.session.phase === 'LEADERBOARD'
-							? 'LIVE LEADERBOARD'
-							: data.session.phase === 'COMPLETE'
-								? 'GAME COMPLETE'
-								: current_is_standard
-									? `Round ${standard_round_number} · Question ${data.current_question?.order ?? ''}`
-									: data.current_round?.name
+				: data.session.phase === 'RULES'
+					? 'Trivia Rules'
+					: data.session.phase === 'ROUND_INTRO'
+						? data.current_round?.name
+						: data.session.phase === 'CATEGORIES'
+							? current_is_standard
+								? `Round ${standard_round_number} Categories`
+								: 'CATEGORIES'
+							: data.session.phase === 'LEADERBOARD'
+								? 'LIVE LEADERBOARD'
+								: data.session.phase === 'COMPLETE'
+									? 'GAME COMPLETE'
+									: current_is_standard
+										? `Round ${standard_round_number} · Question ${data.current_question?.order ?? ''}`
+										: data.current_round?.name
 	);
 	let host_status = $derived(
 		!data.session.is_started
@@ -380,24 +380,20 @@
 				<iframe
 					title="Presentation preview"
 					src={`${page.url.pathname}?presentation=1&preview=1`}
-					class="pointer-events-none absolute top-0 left-0 h-[900px] w-[1440px] origin-top-left border-0"
+					class="pointer-events-none absolute top-0 left-0 h-225 w-360 origin-top-left border-0"
 					style={`transform: scale(${presentation_preview_scale})`}
 				></iframe>
 			</div>{/if}
 		<div class={is_presentation_popout ? 'relative h-full overflow-hidden bg-white' : 'hidden'}>
 			{#if !is_final_results_recap}<img
-				src={data.stump_qr_code}
-				alt="Scan to submit a Stump the Host question"
-				class="pointer-events-none absolute bottom-6 left-6 z-10 max-h-[4.8rem] max-w-[22%] rounded-md bg-white object-contain p-1 shadow-sm {is_presentation_popout
-					? 'bottom-10 left-10 max-h-[9.6rem]'
-					: ''}"
-			/>{/if}
+					src={data.stump_qr_code}
+					alt="Scan to submit a Stump the Host question"
+					class="pointer-events-none absolute bottom-6 left-6 z-10 size-[156px] rounded-md bg-white object-contain p-1 shadow-sm"
+				/>{/if}
 			{#if data.game.location.logo_url}<img
 					src={data.game.location.logo_url}
 					alt=""
-					class="pointer-events-none absolute right-6 bottom-6 max-h-[4.8rem] max-w-[22%] object-contain opacity-100 {is_presentation_popout
-						? 'right-10 bottom-10 max-h-[9.6rem]'
-						: ''}"
+					class="pointer-events-none absolute right-6 bottom-6 max-h-[156px] max-w-[20%] object-contain opacity-100"
 				/>{/if}
 			<div
 				data-presentation-content
@@ -423,120 +419,134 @@
 				{#key `${data.session.phase}-${data.session.current_round_order}-${data.session.current_question_order}`}<div
 						class="clover-presentation-slide flex w-full flex-col items-center"
 					>
-				{#if is_final_results_recap && data.recap_qr_code}<div class="flex flex-col items-center">
-						<p class="mb-5 font-[Kanit] text-2xl font-medium text-[#174735] {is_presentation_popout ? 'text-4xl' : ''}">
-							Scan for tonight’s questions and answers
-						</p>
-						<img
-							src={data.recap_qr_code}
-							alt="Completed game recap QR code"
-							class="size-52 rounded-xl border border-[#dce7df] bg-white p-3 shadow-sm {is_presentation_popout ? 'size-80' : ''}"
-						/>
-					</div>
-				{:else if data.session.phase === 'RULES'}<div
-						class="w-full {is_presentation_popout ? 'max-w-[60vw]' : 'max-w-2xl overflow-hidden'}"
-						style:height={rules_display_height ? `${rules_display_height}px` : undefined}
-					>
-						<div
-							use:fit_rules
-							style:transform={`scale(${rules_scale})`}
-							style:transform-origin="top center"
-							class="flow-root w-full pb-5 text-left text-base leading-7 text-[#315c4d] [&_h1]:mb-4 [&_h1]:font-[Kanit] [&_h1]:font-medium [&_h2]:mb-3 [&_h2]:font-[Kanit] [&_h2]:font-medium [&_h3]:mb-2 [&_h3]:font-bold [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-3 [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 {is_presentation_popout
-								? 'max-w-none text-[clamp(1.15rem,1.8vw,2rem)] leading-[1.45] [&_h1]:text-[clamp(2.5rem,4vw,5rem)] [&_h2]:text-[clamp(2rem,3vw,3.5rem)] [&_h3]:text-[clamp(1.45rem,2vw,2.25rem)]'
-								: 'max-w-2xl [&_h1]:text-4xl [&_h2]:text-3xl [&_h3]:text-xl'}"
-						>
-							{@html data.game.location.location_rule?.rules_markdown ??
-								'<p>Welcome to trivia night! The host will begin shortly.</p>'}
-						</div>
-					</div>
-				{:else if data.session.phase === 'ROUND_INTRO'}<h2
-						class="font-[Kanit] text-5xl font-medium tracking-[-.04em] text-[#174735]"
-					>
-						{data.current_round?.name}
-					</h2>
-					<p class="mt-3 text-[#6d8478]">Get your wagers ready.</p>
-				{:else if data.session.phase === 'CATEGORIES'}<div
-						class="flex w-full max-w-4xl flex-col items-center justify-center gap-3 {is_presentation_popout
-							? 'gap-5'
-							: ''}"
-					>
-						{#each data.current_categories as category}<span
-								class="font-[Kanit] font-medium tracking-[-.02em] text-[#287056] uppercase {is_presentation_popout
-									? 'py-2 text-4xl md:text-6xl'
-									: 'text-2xl md:text-3xl'}">{category}</span
-							>{/each}
-					</div>
-				{:else if data.session.phase === 'QUESTION' && data.current_question}<h2
-						class="font-[Kanit] leading-[1.08] font-medium tracking-[-.04em] text-[#174735] {current_question_text_size}"
-					>
-						{data.current_question.question_text}
-					</h2>
-					{#if data.current_question.image_url}<img
-							src={data.current_question.image_url}
-							alt="Question visual"
-							class="mt-7 max-h-52 max-w-full rounded-xl object-contain shadow-sm"
-						/>{/if}
-				{:else if data.session.phase === 'LEADERBOARD'}<Trophy
-						class="mt-5 text-[#bd8a27]"
-						size={46}
-					/>
-					<h2 class="mt-4 font-[Kanit] text-4xl font-medium text-[#174735]">Check the standings</h2>
-					<p class="mt-3 text-[#6d8478]">The next round is ready when you are.</p>
-				{:else if is_final_results_bottom || is_final_results_full}<div class="w-full max-w-5xl">
-						{#if is_final_results_bottom && final_results_bottom_up.length === 0}<p
-								class="text-lg font-semibold text-[#6d8478]"
+						{#if is_final_results_recap && data.recap_qr_code}<div
+								class="flex flex-col items-center"
 							>
-								Every team finished in the top five.
-							</p>
-						{:else}<div class="mx-auto flex max-w-2xl flex-col gap-1">
-								{#each is_final_results_full ? leaderboard_bottom_up : final_results_bottom_up as entry}
-									{@const rank = final_result_rank_for(entry)}
-									<div
-										class="flex min-w-0 items-center rounded-md border border-[#e1e9e3] bg-white text-left shadow-sm {presentation_leaderboard_row_spacing} {rank <=
-										3
-											? 'border-[#e4d5ad]'
-											: ''}"
+								<p
+									class="mb-5 font-[Kanit] text-2xl font-medium text-[#174735] {is_presentation_popout
+										? 'text-4xl'
+										: ''}"
+								>
+									Scan for tonight’s questions and answers
+								</p>
+								<img
+									src={data.recap_qr_code}
+									alt="Completed game recap QR code"
+									class="size-[268px] rounded-xl border border-[#dce7df] bg-white p-3 shadow-sm"
+								/>
+							</div>
+						{:else if data.session.phase === 'RULES'}<div
+								class="w-full {is_presentation_popout
+									? 'max-w-[60vw]'
+									: 'max-w-2xl overflow-hidden'}"
+								style:height={rules_display_height ? `${rules_display_height}px` : undefined}
+							>
+								<div
+									use:fit_rules
+									style:transform={`scale(${rules_scale})`}
+									style:transform-origin="top center"
+									class="flow-root w-full pb-5 text-left text-base leading-7 text-[#315c4d] [&_h1]:mb-4 [&_h1]:font-[Kanit] [&_h1]:font-medium [&_h2]:mb-3 [&_h2]:font-[Kanit] [&_h2]:font-medium [&_h3]:mb-2 [&_h3]:font-bold [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-3 [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 {is_presentation_popout
+										? 'max-w-none text-[clamp(1.15rem,1.8vw,2rem)] leading-[1.45] [&_h1]:text-[clamp(2.5rem,4vw,5rem)] [&_h2]:text-[clamp(2rem,3vw,3.5rem)] [&_h3]:text-[clamp(1.45rem,2vw,2.25rem)]'
+										: 'max-w-2xl [&_h1]:text-4xl [&_h2]:text-3xl [&_h3]:text-xl'}"
+								>
+									{@html data.game.location.location_rule?.rules_markdown ??
+										'<p>Welcome to trivia night! The host will begin shortly.</p>'}
+								</div>
+							</div>
+						{:else if data.session.phase === 'ROUND_INTRO'}<h2
+								class="font-[Kanit] text-5xl font-medium tracking-[-.04em] text-[#174735]"
+							>
+								{data.current_round?.name}
+							</h2>
+							<p class="mt-3 text-[#6d8478]">Get your wagers ready.</p>
+						{:else if data.session.phase === 'CATEGORIES'}<div
+								class="flex w-full max-w-4xl flex-col items-center justify-center gap-3 {is_presentation_popout
+									? 'gap-5'
+									: ''}"
+							>
+								{#each data.current_categories as category}<span
+										class="font-[Kanit] font-medium tracking-[-.02em] text-[#287056] uppercase {is_presentation_popout
+											? 'py-2 text-4xl md:text-6xl'
+											: 'text-2xl md:text-3xl'}">{category}</span
+									>{/each}
+							</div>
+						{:else if data.session.phase === 'QUESTION' && data.current_question}<h2
+								class="font-[Kanit] leading-[1.08] font-medium tracking-[-.04em] text-[#174735] {current_question_text_size}"
+							>
+								{data.current_question.question_text}
+							</h2>
+							{#if data.current_question.image_url}<img
+									src={data.current_question.image_url}
+									alt="Question visual"
+									class="mt-7 max-h-52 max-w-full rounded-xl object-contain shadow-sm"
+								/>{/if}
+						{:else if data.session.phase === 'LEADERBOARD'}<Trophy
+								class="mt-5 text-[#bd8a27]"
+								size={46}
+							/>
+							<h2 class="mt-4 font-[Kanit] text-4xl font-medium text-[#174735]">
+								Check the standings
+							</h2>
+							<p class="mt-3 text-[#6d8478]">The next round is ready when you are.</p>
+						{:else if is_final_results_bottom || is_final_results_full}<div
+								class="w-full max-w-5xl"
+							>
+								{#if is_final_results_bottom && final_results_bottom_up.length === 0}<p
+										class="text-lg font-semibold text-[#6d8478]"
 									>
-										{#if rank <= 3}<Trophy
-												size={is_presentation_popout ? 18 : 16}
-												class={rank === 1
-													? 'text-[#bd8a27]'
-													: rank === 2
-														? 'text-[#9aa6af]'
-														: 'text-[#b87333]'}
-											/>{:else}<span
-												class="grid shrink-0 place-items-center rounded-full bg-[#edf5ef] font-extrabold text-[#286d54] {presentation_leaderboard_rank_size}"
-												>{rank}</span
-											>{/if}
-										<span
-											class="min-w-0 flex-1 truncate font-[Kanit] leading-tight font-medium text-[#174735] {presentation_leaderboard_text_size} {is_presentation_popout &&
-											presentation_leaderboard_density === 'normal'
-												? 'text-[1.05rem]'
-												: ''}">{entry.team.name}</span
-										><strong
-											class="font-[Kanit] leading-tight font-medium text-[#1e624b] {presentation_leaderboard_points_size} {is_presentation_popout &&
-											presentation_leaderboard_density === 'normal'
-												? 'text-3xl'
-												: ''}">{entry.points}</strong
-										>
-									</div>
-								{/each}
-							</div>{/if}
-					</div>
-				{:else if data.has_podium_tie && !data.has_completed_tiebreaker && data.game.rounds.some((round) => round.round_type === 'TIEBREAKER')}<Trophy
-						class="mt-5 text-[#bd8a27]"
-						size={46}
-					/>
-					<h2 class="mt-4 font-[Kanit] text-4xl font-medium text-[#174735]">We have a tie!</h2>
-					<p class="mt-3 text-[#6d8478]">Final standings are being resolved.</p>
-				{:else}<Trophy class="mt-5 text-[#bd8a27]" size={46} />
-					<h2 class="mt-4 font-[Kanit] text-4xl font-medium text-[#174735]">That’s the game!</h2>
-					<p class="mt-3 text-[#6d8478]">Thanks for playing!</p>{/if}</div
-				>{/key}
+										Every team finished in the top five.
+									</p>
+								{:else}<div class="mx-auto flex max-w-2xl flex-col gap-1">
+										{#each is_final_results_full ? leaderboard_bottom_up : final_results_bottom_up as entry}
+											{@const rank = final_result_rank_for(entry)}
+											<div
+												class="flex min-w-0 items-center rounded-md border border-[#e1e9e3] bg-white text-left shadow-sm {presentation_leaderboard_row_spacing} {rank <=
+												3
+													? 'border-[#e4d5ad]'
+													: ''}"
+											>
+												{#if rank <= 3}<Trophy
+														size={is_presentation_popout ? 18 : 16}
+														class={rank === 1
+															? 'text-[#bd8a27]'
+															: rank === 2
+																? 'text-[#9aa6af]'
+																: 'text-[#b87333]'}
+													/>{:else}<span
+														class="grid shrink-0 place-items-center rounded-full bg-[#edf5ef] font-extrabold text-[#286d54] {presentation_leaderboard_rank_size}"
+														>{rank}</span
+													>{/if}
+												<span
+													class="min-w-0 flex-1 truncate font-[Kanit] leading-tight font-medium text-[#174735] {presentation_leaderboard_text_size} {is_presentation_popout &&
+													presentation_leaderboard_density === 'normal'
+														? 'text-[1.05rem]'
+														: ''}">{entry.team.name}</span
+												><strong
+													class="font-[Kanit] leading-tight font-medium text-[#1e624b] {presentation_leaderboard_points_size} {is_presentation_popout &&
+													presentation_leaderboard_density === 'normal'
+														? 'text-3xl'
+														: ''}">{entry.points}</strong
+												>
+											</div>
+										{/each}
+									</div>{/if}
+							</div>
+						{:else if data.has_podium_tie && !data.has_completed_tiebreaker && data.game.rounds.some((round) => round.round_type === 'TIEBREAKER')}<Trophy
+								class="mt-5 text-[#bd8a27]"
+								size={46}
+							/>
+							<h2 class="mt-4 font-[Kanit] text-4xl font-medium text-[#174735]">We have a tie!</h2>
+							<p class="mt-3 text-[#6d8478]">Final standings are being resolved.</p>
+						{:else}<Trophy class="mt-5 text-[#bd8a27]" size={46} />
+							<h2 class="mt-4 font-[Kanit] text-4xl font-medium text-[#174735]">
+								That’s the game!
+							</h2>
+							<p class="mt-3 text-[#6d8478]">Thanks for playing!</p>{/if}
+					</div>{/key}
 			</div>
 			{#if data.session.is_leaderboard_visible}<div
 					class:clover-presentation-slide={data.session.is_leaderboard_visible}
-				class="absolute inset-0 z-20 grid place-items-center bg-[#f7fbf8]/95 p-5 backdrop-blur-sm"
+					class="absolute inset-0 z-20 grid place-items-center bg-[#f7fbf8]/95 p-5 backdrop-blur-sm"
 				>
 					<div class="flex max-h-full w-full max-w-2xl flex-col">
 						<div class="mb-3 flex shrink-0 items-center justify-center gap-2 text-[#176249]">
@@ -585,7 +595,7 @@
 				</div>{/if}
 			{#if data.session.is_stump_the_host_visible && data.active_stump_submission}<div
 					class:clover-presentation-slide={data.session.is_stump_the_host_visible}
-				class="absolute inset-0 z-20 grid place-items-center bg-[#f7fbf8]/95 p-8 text-center backdrop-blur-sm"
+					class="absolute inset-0 z-20 grid place-items-center bg-[#f7fbf8]/95 p-8 text-center backdrop-blur-sm"
 				>
 					<div class="max-w-5xl">
 						<p class="text-sm font-extrabold tracking-[.16em] text-[#238061] uppercase">
@@ -756,7 +766,11 @@
 							>Complete game <Trophy size={17} /></button
 						>
 					</form>
-				{:else if !is_showing_final_results}<form use:enhance={next_slide_enhance} method="POST" action="?/next">
+				{:else if !is_showing_final_results}<form
+						use:enhance={next_slide_enhance}
+						method="POST"
+						action="?/next"
+					>
 						<button
 							disabled={is_advancing_slide}
 							class="inline-flex items-center gap-2 rounded-md bg-[#176249] px-4 py-3 text-sm font-bold text-white shadow-[0_8px_18px_#17624920]"

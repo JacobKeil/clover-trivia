@@ -8,9 +8,14 @@
 	let {
 		tiptap_editor = $bindable(),
 		label,
-    body = undefined,
+		body = undefined,
 		handle_rules_update
-	}: { tiptap_editor: TipexEditor; label: string; body: string | undefined; handle_rules_update: () => void } = $props();
+	}: {
+		tiptap_editor: TipexEditor;
+		label: string;
+		body: string | undefined;
+		handle_rules_update: () => void;
+	} = $props();
 
 	const filtered_defaults = defaultExtensions.filter(
 		(ext) => ext.name !== 'textAlign' && ext.name !== 'color' && ext.name !== 'textStyle'
@@ -46,7 +51,7 @@
 
 <div class="flex flex-col space-y-2">
 	<div class="flex items-center justify-between">
-		<h1 class="text-lg font-medium text-surface-content/50">{label}</h1>
+		<h1 class="text-surface-content/50 text-lg font-medium">{label}</h1>
 		<div class="flex items-center space-x-2">
 			<button
 				type="button"
@@ -67,7 +72,7 @@
 	</div>
 	<Tipex
 		floating
-    {body}
+		{body}
 		extensions={custom_extensions}
 		bind:tipex={tiptap_editor}
 		onupdate={handle_rules_update}
