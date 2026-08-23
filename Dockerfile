@@ -9,7 +9,14 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 ARG DATABASE_URL=postgres://build:build@localhost:5432/build
+ARG BETTER_AUTH_SECRET=build-only-secret-not-used-at-runtime-32-chars
+ARG ORIGIN=http://localhost
 ENV DATABASE_URL=${DATABASE_URL}
+# Server-only modules are evaluated while SvelteKit builds the app. These values only
+# exist in the build stage; the production container receives its real values from
+# .env.production through Docker Compose.
+ENV BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+ENV ORIGIN=${ORIGIN}
 RUN bun run build
 
 FROM oven/bun:1-alpine AS production
