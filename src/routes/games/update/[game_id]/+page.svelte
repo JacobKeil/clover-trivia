@@ -17,6 +17,7 @@
 	} from '$lib/components';
 	import {
 		CategoryCreateDialog,
+		LocationSelect,
 		QuestionSearchDialog,
 		RoundDeleteDialog
 	} from '$lib/components/ui';
@@ -108,6 +109,10 @@
 
 		is_category_dialog_open = false;
 		target_question_ref = null;
+	}
+
+	function go_to_create_location() {
+		goto('/locations/create');
 	}
 
 	// Game Lock Logic
@@ -343,24 +348,15 @@
 					<label for="location_id" class="text-surface-content/80 text-xs font-semibold">
 						Location *
 					</label>
-					<select
-						required
-						disabled={is_locked || has_rounds}
-						id="location_id"
-						name="location_id"
-						tabindex={is_locked || has_rounds ? -1 : 0}
-						class="bg-surface-100 text-surface-content h-9 w-full rounded-md border border-secondary/20 px-3 text-xs shadow-xs transition-colors focus:border-primary focus:outline-hidden {is_locked
-							? 'bg-surface-200 pointer-events-none opacity-60'
-							: has_rounds
-								? 'bg-surface-200 pointer-events-none opacity-60'
-								: 'cursor-pointer'}"
+					<LocationSelect
 						bind:value={form_state.location_id}
-					>
-						<option value="" disabled>Choose venue...</option>
-						{#each locations as loc}
-							<option value={loc.id.toString()}>{loc.name}</option>
-						{/each}
-					</select>
+						options={locations.map((location) => ({
+							label: location.name,
+							value: location.id.toString()
+						}))}
+						disabled={is_locked || has_rounds}
+						on_create_location={go_to_create_location}
+					/>
 					{#if has_rounds}
 						<span class="text-[11px] font-semibold text-amber-600">
 							🔒 Location locked while rounds exist

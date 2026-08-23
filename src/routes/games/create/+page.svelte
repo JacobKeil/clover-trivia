@@ -13,6 +13,7 @@
 
 	import {
 		CategoryCreateDialog,
+		LocationSelect,
 		QuestionSearchDialog,
 		RoundDeleteDialog
 	} from '$lib/components/ui';
@@ -119,6 +120,10 @@
 
 		is_category_dialog_open = false;
 		target_question_ref = null;
+	}
+
+	function go_to_create_location() {
+		window.location.assign('/locations/create');
 	}
 
 	function create_blank_questions(count: number): QuestionSetup[] {
@@ -375,21 +380,13 @@
 					<label for="location_id" class="text-surface-content/80 text-xs font-semibold"
 						>Select Location *</label
 					>
-					<select
-						required
-						disabled={has_rounds}
-						id="location_id"
-						name="location_id"
-						class="bg-surface-100 text-surface-content h-9 w-full rounded-md border border-secondary/20 px-3 text-xs shadow-xs focus:border-primary focus:outline-hidden disabled:opacity-50"
+					<LocationSelect
 						bind:value={form_state.location_id}
-					>
-						<option value="" disabled selected
-							>{has_rounds ? 'Location locked' : 'Choose venue...'}</option
-						>
-						{#each location_options as loc}
-							<option value={loc.value}>{loc.label}</option>
-						{/each}
-					</select>
+						options={location_options}
+						placeholder={has_rounds ? 'Location locked' : 'Choose venue...'}
+						disabled={has_rounds}
+						on_create_location={go_to_create_location}
+					/>
 
 					<input type="hidden" name="location_id" value={form_state.location_id} />
 
