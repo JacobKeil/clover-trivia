@@ -36,6 +36,29 @@
 	let load_error = $state<string | null>(null);
 	let managed_team_id = $state('');
 	let bonus_error = $state<string | null>(null);
+	let rename_error = $state<string | null>(null);
+	let rename_success = $state(false);
+	let team_to_delete_id = $state('');
+	let is_delete_team_dialog_open = $state(false);
+	let delete_team_error = $state<string | null>(null);
+	let saved_teams = $derived.by(() => {
+		const all_teams = [
+			...data.scorecards.map((entry) => ({ id: entry.team.id, name: entry.team.name })),
+			...data.available_teams.map((current_team) => ({
+				id: current_team.id,
+				name: current_team.name
+			}))
+		];
+		return all_teams
+			.filter(
+				(current_team, index) =>
+					all_teams.findIndex((candidate) => candidate.id === current_team.id) === index
+			)
+			.sort((first, second) => first.name.localeCompare(second.name));
+	});
+	let team_to_delete = $derived(
+		saved_teams.find((current_team) => current_team.id === team_to_delete_id) ?? null
+	);
 	let managed_scorecard = $derived(
 		scorecards.find((entry) => entry.team.id === managed_team_id) ?? scorecards[0] ?? null
 	);
@@ -51,8 +74,8 @@
 		channel.postMessage('scores-updated');
 		channel.close();
 	}
-	async function load_score_history() {
-		is_loading = true;
+	async function load_score_history(show_loading = true) {
+		if (show_loading) is_loading = true;
 		load_error = null;
 		try {
 			const response = await fetch(`${window.location.pathname}/score-history`);
@@ -65,7 +88,7 @@
 		} catch {
 			load_error = 'Score history could not be loaded. Please try again.';
 		} finally {
-			is_loading = false;
+			if (show_loading) is_loading = false;
 		}
 	}
 	function handle_open_change(next_open: boolean) {
@@ -75,6 +98,42 @@
 	const manage_score_enhance: SubmitFunction = () => {
 		return async ({ update }) => {
 			await update({ reset: false });
+			await load_score_history(false);
+			notify_presentation();
+		};
+	};
+	const rename_team_enhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			rename_error = null;
+			rename_success = false;
+			await update({ reset: false });
+			if (result.type !== 'success') {
+				rename_error =
+					result.type === 'failure' && typeof result.data?.message === 'string'
+						? result.data.message
+						: 'Could not update the team name.';
+				return;
+			}
+			rename_success = true;
+			await invalidateAll();
+			await load_score_history();
+			notify_presentation();
+		};
+	};
+	const delete_team_enhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			delete_team_error = null;
+			await update({ reset: false });
+			if (result.type !== 'success') {
+				delete_team_error =
+					result.type === 'failure' && typeof result.data?.message === 'string'
+						? result.data.message
+						: 'Could not delete the team.';
+				return;
+			}
+			team_to_delete_id = '';
+			is_delete_team_dialog_open = false;
+			await invalidateAll();
 			await load_score_history();
 			notify_presentation();
 		};
@@ -93,7 +152,7 @@
 			const response = await fetch('?/toggle_bonus', { method: 'POST', body: form_data });
 			if (!response.ok) throw new Error('Could not update bonus score.');
 			await invalidateAll();
-			await load_score_history();
+			await load_score_history(false);
 			notify_presentation();
 		} catch {
 			bonus_error = 'The bonus score could not be saved. Please try again.';
@@ -136,14 +195,114 @@
 				</p>{:else}<div class="mt-5 flex flex-wrap gap-2 border-b border-[#e8eee9] pb-4">
 					{#each scorecards as entry}<button
 							type="button"
-							onclick={() => (managed_team_id = entry.team.id)}
+							onclick={() => {
+								managed_team_id = entry.team.id;
+								rename_error = null;
+								rename_success = false;
+							}}
 							class="rounded-md px-3 py-2 text-xs font-bold {managed_scorecard?.team.id ===
 							entry.team.id
 								? 'bg-[#176249] text-white'
 								: 'bg-[#f1f6f1] text-[#315c4d]'}">{entry.team.name} · {entry.points}</button
 						>{/each}
 				</div>
-				{#if managed_scorecard}{#if managed_scorecard_has_submissions}<div class="mt-5 grid gap-4">
+				{#if managed_scorecard}<form
+						use:enhance={rename_team_enhance}
+						method="POST"
+						action="?/rename_team"
+						class="mt-5 flex flex-wrap gap-2 rounded-xl border border-[#e1e9e3] bg-[#f7faf7] p-3"
+					>
+						<input type="hidden" name="team_id" value={managed_scorecard.team.id} />
+						<div
+							class="grid min-w-48 flex-1 gap-1 text-xs font-extrabold tracking-[.08em] text-[#527466] uppercase"
+						>
+							<label for="managed-team-name">Team name</label>
+							<div class="flex flex-wrap items-center gap-2">
+								<input
+									id="managed-team-name"
+									name="team_name"
+									required
+									maxlength="255"
+									value={managed_scorecard.team.name}
+									class="h-9 min-w-0 flex-1 rounded-md border border-[#d6e1d8] bg-white px-3 text-sm font-semibold tracking-normal text-[#183d32] normal-case outline-none focus:border-[#238061] focus:ring-2 focus:ring-[#238061]/15"
+								/>
+								<button
+									class="h-9 rounded-md border border-[#c8ddce] bg-white px-3 text-xs font-bold tracking-normal text-[#246d52] normal-case hover:bg-[#f2f8f3]"
+									>Save name</button
+								>
+								{#if rename_success}<p
+										class="text-xs font-semibold tracking-normal text-emerald-700 normal-case"
+									>
+										Team name saved.
+									</p>{/if}
+							</div>
+						</div>
+						{#if rename_error}<p class="w-full text-xs font-semibold text-rose-700">
+								{rename_error}
+							</p>{/if}
+					</form>
+					<div class="mt-3 flex flex-wrap items-center gap-2">
+						<select
+							bind:value={team_to_delete_id}
+							aria-label="Saved team to delete"
+							class="h-9 min-w-48 rounded-md border border-rose-200 bg-white px-3 text-sm font-semibold text-[#315c4d] outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/15"
+						>
+							<option value="">Delete a saved team…</option>
+							{#each saved_teams as saved_team}<option value={saved_team.id}
+									>{saved_team.name}</option
+								>{/each}
+						</select>
+						<Dialog.Root
+							bind:open={is_delete_team_dialog_open}
+							onOpenChange={(next_open) => {
+								is_delete_team_dialog_open = next_open;
+								if (!next_open) {
+									team_to_delete_id = '';
+									delete_team_error = null;
+								}
+							}}
+						>
+							<Dialog.Trigger
+								disabled={!team_to_delete}
+								class="h-9 rounded-md border border-rose-200 bg-white px-3 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+								>Delete saved team</Dialog.Trigger
+							>
+							<Dialog.Portal>
+								<Dialog.Overlay class="fixed inset-0 z-[60] bg-[#123328]/35 backdrop-blur-sm" />
+								<Dialog.Content
+									class="fixed top-1/2 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#dce7df] bg-white p-6 shadow-2xl outline-hidden"
+								>
+									<DialogCloseButton />
+									<Dialog.Title class="font-[Kanit] text-2xl font-medium text-[#183d32]"
+										>Delete saved team?</Dialog.Title
+									>
+									<Dialog.Description class="mt-2 text-sm leading-6 text-[#71837a]">
+										This removes <strong class="text-[#183d32]">{team_to_delete?.name}</strong> from the
+										location and any unscored game rosters. Teams with saved score history cannot be deleted.
+									</Dialog.Description>
+									{#if delete_team_error}<p
+											class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700"
+										>
+											{delete_team_error}
+										</p>{/if}
+									<div class="mt-6 flex justify-end gap-2">
+										<Dialog.Close
+											class="rounded-md border border-[#d6e1d8] px-4 py-2.5 text-sm font-bold text-[#4b685c] hover:bg-[#f5f8f5]"
+											>Cancel</Dialog.Close
+										>
+										<form use:enhance={delete_team_enhance} method="POST" action="?/delete_team">
+											<input type="hidden" name="team_id" value={team_to_delete_id} />
+											<button
+												class="rounded-md bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700"
+												>Delete team</button
+											>
+										</form>
+									</div>
+								</Dialog.Content>
+							</Dialog.Portal>
+						</Dialog.Root>
+					</div>
+					{#if managed_scorecard_has_submissions}<div class="mt-5 grid gap-4">
 							{#each managed_scorecard.score_history as history_round}
 								{#if history_round.questions.some((question) => question.submission || question.tiebreaker_submission)}<section
 										class="rounded-xl border border-[#e1e9e3] p-4"

@@ -3,6 +3,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Dialog } from 'bits-ui';
+	import { flip } from 'svelte/animate';
 	import {
 		ChevronRight,
 		CircleQuestionMark,
@@ -30,6 +31,8 @@
 	let compact_mode_timer: ReturnType<typeof setTimeout> | undefined;
 	let is_advancing_slide = $state(false);
 	let is_returning_slide = $state(false);
+	let is_presentation_connected = $state(false);
+	let presentation_health_timer: ReturnType<typeof setTimeout> | undefined;
 	let presentation_sync_channel: BroadcastChannel | null = null;
 	let stump_event_source: EventSource | null = null;
 
@@ -107,7 +110,7 @@
 							: data.session.phase === 'LEADERBOARD'
 								? 'LIVE LEADERBOARD'
 								: data.session.phase === 'COMPLETE'
-									? 'GAME COMPLETE'
+									? 'FINAL STANDINGS READY'
 									: current_is_standard
 										? `Round ${standard_round_number} · Question ${data.current_question?.order ?? ''}`
 										: data.current_round?.name
@@ -123,10 +126,10 @@
 		const length = data.current_question?.question_text.length ?? 0;
 		if (is_presentation_popout)
 			return length > 220
-				? 'max-w-6xl text-[clamp(2.25rem,4.5vw,5rem)]'
+				? 'w-full max-w-[calc(100vw-10rem)] text-[clamp(2.25rem,4.5vw,5rem)]'
 				: length > 110
-					? 'max-w-6xl text-[clamp(2.75rem,5vw,6.25rem)]'
-					: 'max-w-6xl text-[clamp(3.25rem,6vw,7.5rem)]';
+					? 'w-full max-w-[calc(100vw-10rem)] text-[clamp(2.75rem,5vw,6.25rem)]'
+					: 'w-full max-w-[calc(100vw-10rem)] text-[clamp(3.25rem,6vw,7.5rem)]';
 		return length > 220
 			? 'max-w-3xl text-[clamp(1.5rem,3vw,3rem)]'
 			: length > 110
@@ -152,6 +155,14 @@
 
 	function final_result_rank_for(entry: { team: { id: string } }) {
 		return data.leaderboard.findIndex((candidate) => candidate.team.id === entry.team.id) + 1;
+	}
+
+	function mark_presentation_connected() {
+		is_presentation_connected = true;
+		if (presentation_health_timer) clearTimeout(presentation_health_timer);
+		presentation_health_timer = setTimeout(() => {
+			is_presentation_connected = false;
+		}, 2500);
 	}
 
 	function open_presentation() {
@@ -272,8 +283,30 @@
 		}
 		const channel = new BroadcastChannel(`clover-host-${data.game.id}`);
 		presentation_sync_channel = channel;
-		channel.onmessage = () => void invalidateAll();
+		channel.onmessage = (event) => {
+			if (
+				!is_presentation_popout &&
+				(event.data === 'presentation-connected' || event.data === 'presentation-heartbeat')
+			) {
+				mark_presentation_connected();
+				return;
+			}
+			if (!is_presentation_popout && event.data === 'presentation-disconnected') {
+				is_presentation_connected = false;
+				if (presentation_health_timer) clearTimeout(presentation_health_timer);
+				return;
+			}
+			if (is_presentation_popout && !is_presentation_preview && event.data === 'host-ready') {
+				channel.postMessage('presentation-connected');
+				return;
+			}
+			void invalidateAll();
+		};
+		if (is_presentation_popout && !is_presentation_preview) {
+			channel.postMessage('presentation-connected');
+		}
 		if (!is_presentation_popout) {
+			channel.postMessage('host-ready');
 			const handle_host_hotkey = (event: KeyboardEvent) => {
 				if (event.metaKey || event.ctrlKey || event.altKey) return;
 				const target = event.target as HTMLElement | null;
@@ -298,10 +331,14 @@
 			document.addEventListener('keydown', handle_host_hotkey);
 			const event_source = new EventSource(`${window.location.pathname}/stump-events`);
 			stump_event_source = event_source;
-			event_source.addEventListener('stump-submitted', () => void invalidateAll());
+			event_source.addEventListener('stump-submitted', () => {
+				toast.info('New Stump the Host question submitted.');
+				void invalidateAll();
+			});
 			return () => {
 				event_source.close();
 				stump_event_source = null;
+				if (presentation_health_timer) clearTimeout(presentation_health_timer);
 				channel.close();
 				presentation_sync_channel = null;
 				document.removeEventListener('keydown', handle_host_hotkey);
@@ -314,8 +351,13 @@
 		const update_fullscreen_state = () => {
 			is_fullscreen = Boolean(document.fullscreenElement);
 		};
+		const presentation_heartbeat = is_presentation_preview
+			? undefined
+			: setInterval(() => channel.postMessage('presentation-heartbeat'), 1000);
 		document.addEventListener('fullscreenchange', update_fullscreen_state);
 		return () => {
+			if (!is_presentation_preview) channel.postMessage('presentation-disconnected');
+			if (presentation_heartbeat) clearInterval(presentation_heartbeat);
 			channel.close();
 			presentation_sync_channel = null;
 			document.documentElement.style.overflow = html_overflow;
@@ -457,6 +499,18 @@
 						class="pointer-events-none absolute top-0 left-0 h-225 w-360 origin-top-left border-0"
 						style={`transform: scale(${presentation_preview_scale})`}
 					></iframe>
+					<div
+						class="pointer-events-none absolute bottom-3 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/70 bg-white/90 px-2 py-0.5 text-[.55rem] font-extrabold tracking-[.07em] uppercase shadow-sm backdrop-blur {is_presentation_connected
+							? 'text-emerald-700'
+							: 'text-[#71837a]'}"
+					>
+						<span
+							class="size-1 rounded-full {is_presentation_connected
+								? 'bg-emerald-500 shadow-[0_0_0_3px_#22c55e22]'
+								: 'bg-[#b6c4bb]'}"
+						></span>
+						Display {is_presentation_connected ? 'connected' : 'not connected'}
+					</div>
 				</div>{/if}
 			<div class={is_presentation_popout ? 'relative h-full overflow-hidden bg-white' : 'hidden'}>
 				{#if !is_final_results_recap}<img
@@ -476,15 +530,17 @@
 					is_final_results_full ||
 					is_final_results_recap
 						? 'py-16'
-						: 'pt-24'} {is_presentation_popout &&
+						: 'py-24'} {is_presentation_popout &&
 					!(is_final_results_bottom || is_final_results_full)
-						? 'px-8 pt-36 pb-8'
+						? 'px-8 py-36'
 						: ''}"
 				>
 					<p
 						class="absolute top-7 left-1/2 -translate-x-1/2 font-[Kanit] font-medium whitespace-nowrap text-[#2f7559] {is_final_results_bottom ||
 						is_final_results_full
-							? 'text-sm tracking-[.16em]'
+							? is_presentation_popout
+								? 'text-2xl tracking-[.16em]'
+								: 'text-lg tracking-[.16em]'
 							: is_presentation_popout
 								? 'text-4xl tracking-[-.02em] md:text-6xl'
 								: 'text-2xl tracking-[-.02em] md:text-3xl'}"
@@ -613,9 +669,9 @@
 								<p class="mt-3 text-[#6d8478]">Final standings are being resolved.</p>
 							{:else}<Trophy class="mt-5 text-[#bd8a27]" size={46} />
 								<h2 class="mt-4 font-[Kanit] text-4xl font-medium text-[#174735]">
-									That’s the game!
+									Getting final standings ready
 								</h2>
-								<p class="mt-3 text-[#6d8478]">Thanks for playing!</p>{/if}
+								<p class="mt-3 text-[#6d8478]">Hang tight while the results are prepared.</p>{/if}
 						</div>{/key}
 				</div>
 				{#if data.session.is_leaderboard_visible}<div
@@ -638,7 +694,8 @@
 							<div
 								class="mx-auto flex w-full max-w-xl flex-1 [scrollbar-width:thin] [scrollbar-color:#8fac99_transparent] flex-col gap-1 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#8fac99]"
 							>
-								{#each leaderboard_bottom_up as entry}<div
+								{#each leaderboard_bottom_up as entry (entry.team.id)}<div
+										animate:flip={{ duration: 420, easing: cubicOut }}
 										class="flex min-w-0 items-center rounded-md border border-[#e1e9e3] bg-white shadow-sm {presentation_leaderboard_row_spacing}"
 									>
 										<span
@@ -797,6 +854,22 @@
 										{data.current_question.correct_answer_text}
 									</p>
 								</div>
+								{#if data.current_question.song_title || data.current_question.song_artist}<div
+										class="mt-3 rounded-xl border border-sky-100 bg-sky-50 p-4"
+									>
+										<p class="text-xs font-extrabold tracking-[.1em] text-sky-700 uppercase">
+											Song details
+										</p>
+										<div
+											class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-sky-950"
+										>
+											<span class="font-bold">Song</span>
+											<span>{data.current_question.song_title ?? '—'}</span>
+											{#if data.current_question.song_artist}<span class="text-sky-400">•</span>
+												<span class="font-bold">Artist</span>
+												<span>{data.current_question.song_artist}</span>{/if}
+										</div>
+									</div>{/if}
 								<div class="mt-3 rounded-xl border border-[#e1e9e3] bg-[#f8fbf8] p-4">
 									<p class="text-xs font-extrabold tracking-[.1em] text-[#527466] uppercase">
 										Host notes
@@ -815,13 +888,17 @@
 						>{data.session.is_leaderboard_visible ? 'Hide leaderboard' : 'Show leaderboard'}</button
 					>
 				</form>
-				<form use:enhance={host_control_enhance} method="POST" action="?/spin_stump_the_host">
-					<button
-						disabled={data.stump_submission_count === 0}
-						class="inline-flex items-center gap-2 rounded-md border border-[#c8ddce] px-4 py-3 text-sm font-bold text-[#246d52] disabled:cursor-not-allowed disabled:opacity-40"
-						><CircleQuestionMark size={16} /> Draw stump ({data.stump_submission_count} left)</button
+				{#if !data.session.is_stump_the_host_visible}<form
+						use:enhance={host_control_enhance}
+						method="POST"
+						action="?/spin_stump_the_host"
 					>
-				</form>
+						<button
+							disabled={data.stump_submission_count === 0}
+							class="inline-flex items-center gap-2 rounded-md border border-[#c8ddce] px-4 py-3 text-sm font-bold text-[#246d52] disabled:cursor-not-allowed disabled:opacity-40"
+							><CircleQuestionMark size={16} /> Draw stump ({data.stump_submission_count} left)</button
+						>
+					</form>{/if}
 				{#if data.session.is_stump_the_host_visible && !data.session.is_stump_answer_revealed}<form
 						use:enhance={host_control_enhance}
 						method="POST"
@@ -870,7 +947,7 @@
 						>
 					</form>{/if}
 			</div>
-			<div class="flex shrink-0 items-center gap-2">
+			<div class="ml-auto flex shrink-0 items-center gap-2">
 				<form use:enhance={previous_slide_enhance} method="POST" action="?/previous">
 					<button
 						data-hotkey="previous"

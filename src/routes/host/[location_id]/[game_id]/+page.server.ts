@@ -1,5 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { and, asc, desc, eq, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, ne, sql } from 'drizzle-orm';
 import QRCode from 'qrcode';
 import { db } from '$lib/server/db';
 import {
@@ -581,6 +581,10 @@ export const actions: Actions = {
 					current_round_order: last_round.order,
 					current_question_order: last_round.questions.length
 				};
+		} else if (
+			['FINAL_RESULTS_BOTTOM', 'FINAL_RESULTS_FULL', 'FINAL_RESULTS_TOP'].includes(session.phase)
+		) {
+			previous = { phase: 'COMPLETE', current_round_order: 0, current_question_order: 0 };
 		}
 
 		await db
@@ -654,9 +658,16 @@ export const actions: Actions = {
 					message: `${tied_team_ids.length} teams are tied for podium spots. Run and score the tiebreaker before showing final standings.`
 				});
 		}
+		const roster = await db.query.game_team.findMany({
+			where: eq(game_team.game_id, host_game.id),
+			columns: { id: true }
+		});
 		await db
 			.update(game_session)
-			.set({ phase: 'FINAL_RESULTS_BOTTOM', updated_at: new Date() })
+			.set({
+				phase: roster.length > 5 ? 'FINAL_RESULTS_BOTTOM' : 'FINAL_RESULTS_FULL',
+				updated_at: new Date()
+			})
 			.where(eq(game_session.game_id, host_game.id));
 		return { success: true };
 	},
@@ -735,6 +746,14 @@ export const actions: Actions = {
 		let team_id = String(form_data.get('team_id') ?? '');
 		const team_name = String(form_data.get('team_name') ?? '').trim();
 		if (team_name) {
+			const duplicate_team = await db.query.team.findFirst({
+				where: and(
+					eq(team.location_id, host_game.location_id),
+					sql`lower(${team.name}) = lower(${team_name})`
+				)
+			});
+			if (duplicate_team)
+				return fail(409, { message: 'A team with that name already exists at this location.' });
 			const [created_team] = await db
 				.insert(team)
 				.values({ name: team_name, location_id: host_game.location_id, user_id: locals.user.id })
@@ -747,6 +766,72 @@ export const actions: Actions = {
 		});
 		if (!selected_team) return fail(404, { message: 'Team not found.' });
 		await db.insert(game_team).values({ game_id: host_game.id, team_id }).onConflictDoNothing();
+		return { success: true };
+	},
+	rename_team: async ({ request, locals, params }) => {
+		if (!locals.user) return fail(401);
+		const host_game = await get_owned_game_access(
+			params.game_id,
+			params.location_id,
+			locals.user.id
+		);
+		if (!host_game) return fail(404);
+		const form_data = await request.formData();
+		const team_id = String(form_data.get('team_id') ?? '');
+		const team_name = String(form_data.get('team_name') ?? '').trim();
+		if (!team_id || !team_name) return fail(400, { message: 'Enter a team name.' });
+		if (team_name.length > 255)
+			return fail(400, { message: 'Team names must be 255 characters or fewer.' });
+
+		const roster_entry = await db.query.game_team.findFirst({
+			where: and(eq(game_team.game_id, host_game.id), eq(game_team.team_id, team_id))
+		});
+		if (!roster_entry) return fail(404, { message: 'Team is not on this game.' });
+		const duplicate_team = await db.query.team.findFirst({
+			where: and(
+				eq(team.location_id, host_game.location_id),
+				sql`lower(${team.name}) = lower(${team_name})`,
+				ne(team.id, team_id)
+			)
+		});
+		if (duplicate_team) return fail(409, { message: 'A team with that name already exists here.' });
+
+		await db.update(team).set({ name: team_name }).where(eq(team.id, team_id));
+		return { success: true };
+	},
+	delete_team: async ({ request, locals, params }) => {
+		if (!locals.user) return fail(401);
+		const host_game = await get_owned_game_access(
+			params.game_id,
+			params.location_id,
+			locals.user.id
+		);
+		if (!host_game) return fail(404);
+		const team_id = String((await request.formData()).get('team_id') ?? '');
+		if (!team_id) return fail(400, { message: 'Choose a team to delete.' });
+		const selected_team = await db.query.team.findFirst({
+			where: and(eq(team.id, team_id), eq(team.location_id, host_game.location_id))
+		});
+		if (!selected_team) return fail(404, { message: 'Team not found.' });
+		const [existing_submission, existing_tiebreaker] = await Promise.all([
+			db.query.team_submission.findFirst({
+				where: eq(team_submission.team_id, selected_team.id),
+				columns: { id: true }
+			}),
+			db.query.tiebreaker_submission.findFirst({
+				where: eq(tiebreaker_submission.team_id, selected_team.id),
+				columns: { id: true }
+			})
+		]);
+		if (existing_submission || existing_tiebreaker)
+			return fail(409, {
+				message: 'This team has saved score history and cannot be deleted.'
+			});
+
+		await db.transaction(async (tx) => {
+			await tx.delete(game_team).where(eq(game_team.team_id, selected_team.id));
+			await tx.delete(team).where(eq(team.id, selected_team.id));
+		});
 		return { success: true };
 	},
 	add_previous_teams: async ({ locals, params }) => {

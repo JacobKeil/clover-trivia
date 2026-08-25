@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { flip } from 'svelte/animate';
 	import { MonitorUp, Trophy } from '@lucide/svelte';
 	import type { PageData } from './$types';
 
@@ -27,7 +28,8 @@
 	<div
 		class="mt-5 grid flex-1 [scrollbar-width:thin] [scrollbar-color:#8fac99_transparent] content-start gap-2 overflow-y-scroll pr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#8fac99] [&::-webkit-scrollbar-track]:bg-[#edf4ee]"
 	>
-		{#if leaderboard.length}{#each bottom_up as entry, index}<div
+		{#if leaderboard.length}{#each bottom_up as entry, index (entry.team.id)}<div
+					animate:flip={{ duration: 420 }}
 					class="flex items-center gap-2.5 rounded-md {rank_for(entry) <= 3
 						? 'bg-[#f6faf5]'
 						: 'bg-[#fbfcfb]'} px-2.5 py-1.5"

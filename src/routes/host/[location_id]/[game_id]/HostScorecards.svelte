@@ -16,6 +16,7 @@
 	let saved_team_search = $state('');
 	let is_saved_team_search_open = $state(false);
 	let saved_team_form = $state<HTMLFormElement | null>(null);
+	let new_team_input = $state<HTMLInputElement | null>(null);
 	let saved_team_viewport = $state<HTMLElement | null>(null);
 	let saved_team_scroll_thumb = $state({ top: 0, height: 0, visible: false });
 	let filtered_saved_teams = $derived(
@@ -28,6 +29,7 @@
 	let current_is_final = $derived(data.current_round?.round_type === 'FINAL');
 	let current_is_tiebreaker = $derived(data.current_round?.round_type === 'TIEBREAKER');
 	let scorecard_filter = $state<'ALL' | 'NEEDS_SCORING'>('ALL');
+	let team_search_query = $state('');
 	let current_scorecards = $derived(
 		current_is_tiebreaker ? data.tiebreaker_scorecards : data.scorecards
 	);
@@ -42,6 +44,11 @@
 					current_is_tiebreaker ? !entry.current_tiebreaker_submission : !entry.current_submission
 				)
 			: current_scorecards
+	);
+	let displayed_scorecards = $derived(
+		visible_scorecards.filter((entry) =>
+			entry.team.name.toLowerCase().includes(team_search_query.trim().toLowerCase())
+		)
 	);
 
 	function select_wager(team_id: string, wager: number) {
@@ -93,6 +100,20 @@
 			saved_team_search = '';
 			is_saved_team_search_open = false;
 			notify_presentation();
+		};
+	};
+	const create_team_enhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			await update({ reset: result.type === 'success' });
+			if (result.type !== 'success') {
+				show_action_error(
+					result.type === 'failure' ? result.data : undefined,
+					'Could not add the team.'
+				);
+				return;
+			}
+			notify_presentation();
+			requestAnimationFrame(() => new_team_input?.focus());
 		};
 	};
 	const previous_teams_enhance: SubmitFunction = () => {
@@ -236,14 +257,15 @@
 					</Combobox.Portal>
 				</Combobox.Root>
 			</form>
-			<form use:enhance={team_enhance} method="POST" action="?/add_team" class="flex gap-2">
+			<form use:enhance={create_team_enhance} method="POST" action="?/add_team" class="flex gap-2">
 				<input
+					bind:this={new_team_input}
 					required
 					name="team_name"
 					placeholder="New team name"
 					class="h-9 w-36 rounded-md border border-[#d8e4db] px-3 text-xs"
 				/><button
-					class="inline-flex items-center gap-1 rounded-md bg-[#176249] px-3 text-xs font-bold text-white"
+					class="inline-flex h-9 items-center gap-1 rounded-md bg-[#176249] px-3 text-xs font-bold text-white"
 					><CirclePlus size={14} /> Create & add</button
 				>
 			</form>
@@ -261,9 +283,11 @@
 				remaining={unscored_team_count}
 				filter={scorecard_filter}
 				onfilterchange={(filter) => (scorecard_filter = filter)}
+				team_search={team_search_query}
+				onteamsearchchange={(search) => (team_search_query = search)}
 			/>{/if}
-		{#if visible_scorecards.length > 0}<div class="mt-4 grid gap-4 lg:grid-cols-3">
-				{#each visible_scorecards as entry (entry.team.id)}
+		{#if displayed_scorecards.length > 0}<div class="mt-4 grid gap-4 lg:grid-cols-3">
+				{#each displayed_scorecards as entry (entry.team.id)}
 					{@const needs_scoring = current_is_tiebreaker
 						? !entry.current_tiebreaker_submission
 						: !entry.current_submission}
@@ -605,6 +629,10 @@
 								</div>
 							</form>{/if}
 					</article>{/each}
+			</div>{:else if team_search_query.trim()}<div
+				class="mt-4 rounded-xl border border-dashed border-[#cfded2] bg-[#f8fbf8] px-4 py-8 text-center"
+			>
+				<p class="text-sm font-semibold text-[#315c4d]">No teams match that search.</p>
 			</div>{:else if data.current_question}<div
 				class="mt-4 rounded-xl border border-dashed border-[#cfded2] bg-[#f8fbf8] px-4 py-8 text-center"
 			>
