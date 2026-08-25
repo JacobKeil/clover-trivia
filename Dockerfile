@@ -8,6 +8,9 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
+# `.svelte-kit` is intentionally excluded from the build context, so regenerate
+# SvelteKit's generated TypeScript configuration before Vite reads tsconfig.json.
+RUN bunx svelte-kit sync
 ARG DATABASE_URL=postgres://build:build@localhost:5432/build
 ARG BETTER_AUTH_SECRET=build-only-secret-not-used-at-runtime-32-chars
 ARG ORIGIN=http://localhost
