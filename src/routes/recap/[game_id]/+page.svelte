@@ -79,7 +79,9 @@
 							<div
 								class="flex flex-wrap items-center gap-2 text-xs font-extrabold tracking-[.12em] text-[#71837a] uppercase"
 							>
-								<span>Question {current_question.order}</span>
+								{#if round.round_type === 'STANDARD'}
+									<span>Question {current_question.order}</span>
+								{/if}
 								{#if round.round_type === 'STANDARD' && current_question.category}<span
 										class="rounded-full bg-[#eaf5ec] px-2.5 py-1 text-[#287056]"
 										>{current_question.category.name}</span

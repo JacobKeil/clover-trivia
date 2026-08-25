@@ -2,7 +2,7 @@
 	import '../app.css';
 	import '@friendofsvelte/tipex/styles/index.css';
 	import { page } from '$app/state';
-	import { CloverMark, NetworkActivityIndicator } from '$lib/components';
+	import { CloverMark, NetworkActivityIndicator, ToastViewport } from '$lib/components';
 
 	let { children, data } = $props();
 	let is_presentation_popout = $derived(page.url.searchParams.get('presentation') === '1');
@@ -10,6 +10,7 @@
 
 <main class="min-h-screen bg-white font-sans text-slate-900">
 	<NetworkActivityIndicator />
+	<ToastViewport />
 	{#if !is_presentation_popout}<nav
 			class="sticky top-0 z-50 border-b border-[#e6ece7] bg-white/90 backdrop-blur-md"
 		>

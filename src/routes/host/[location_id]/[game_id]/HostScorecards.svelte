@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Combobox } from 'bits-ui';
+	import { Combobox, Dialog } from 'bits-ui';
 	import { Check, CirclePlus, Trash2, X } from '@lucide/svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Tooltip as AppTooltip } from '$lib/components/ui';
+	import { toast } from '$lib/toast.svelte';
 	import ScorecardProgress from './ScorecardProgress.svelte';
 	import ManageScoresDialog from './ManageScoresDialog.svelte';
 	import type { PageData } from './$types';
@@ -57,20 +58,69 @@
 		channel.postMessage('scores-updated');
 		channel.close();
 	}
+	function show_action_error(data: unknown, fallback: string) {
+		const message =
+			typeof data === 'object' && data && 'message' in data && typeof data.message === 'string'
+				? data.message
+				: fallback;
+		toast.error(message);
+	}
 	const score_enhance: SubmitFunction = () => {
-		return async ({ update }) => {
+		return async ({ result, update }) => {
 			await update({ reset: false });
+			if (result.type !== 'success') {
+				show_action_error(
+					result.type === 'failure' ? result.data : undefined,
+					'Could not update the score.'
+				);
+				return;
+			}
 			selected_wagers = {};
 			notify_presentation();
 		};
 	};
 	const team_enhance: SubmitFunction = () => {
-		return async ({ update }) => {
+		return async ({ result, update }) => {
 			await update({ reset: true });
+			if (result.type !== 'success') {
+				show_action_error(
+					result.type === 'failure' ? result.data : undefined,
+					'Could not add the team.'
+				);
+				return;
+			}
 			selected_saved_team_id = '';
 			saved_team_search = '';
 			is_saved_team_search_open = false;
 			notify_presentation();
+		};
+	};
+	const previous_teams_enhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type !== 'success') {
+				show_action_error(
+					result.type === 'failure' ? result.data : undefined,
+					'Could not add teams from the previous game.'
+				);
+				return;
+			}
+			notify_presentation();
+			toast.success('Added teams from the previous game.');
+		};
+	};
+	const remove_team_enhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type !== 'success') {
+				show_action_error(
+					result.type === 'failure' ? result.data : undefined,
+					'Could not remove the team.'
+				);
+				return;
+			}
+			notify_presentation();
+			toast.success('Team removed from this game.');
 		};
 	};
 	function add_saved_team(team_id: string) {
@@ -116,6 +166,16 @@
 			<h2 class="mt-1 font-[Kanit] text-3xl font-medium tracking-[-.03em]">Teams in this game</h2>
 		</div>
 		<div class="flex flex-wrap gap-2">
+			{#if data.previous_game}
+				<form use:enhance={previous_teams_enhance} method="POST" action="?/add_previous_teams">
+					<button
+						disabled={data.previous_game.available_team_count === 0}
+						class="inline-flex h-9 items-center gap-1 rounded-md border border-[#c8ddce] px-3 text-xs font-bold text-[#246d52] hover:bg-[#f2f8f3] disabled:cursor-not-allowed disabled:opacity-40"
+					>
+						Add {data.previous_game.available_team_count} from last game
+					</button>
+				</form>
+			{/if}
 			<form
 				bind:this={saved_team_form}
 				use:enhance={team_enhance}
@@ -144,12 +204,12 @@
 					<Combobox.Portal>
 						<Combobox.Content
 							sideOffset={6}
-							class="relative z-50 h-56 w-56 overflow-hidden rounded-lg border border-[#d8e4db] bg-white p-1 shadow-lg"
+							class="relative z-50 max-h-56 w-56 overflow-hidden rounded-lg border border-[#d8e4db] bg-white p-1 shadow-lg"
 						>
 							<div
 								bind:this={saved_team_viewport}
 								onscroll={update_saved_team_scroll_thumb}
-								class="h-full [scrollbar-width:none] overflow-y-auto pr-3 [&::-webkit-scrollbar]:hidden"
+								class="max-h-54 [scrollbar-width:none] overflow-y-auto pr-3 [&::-webkit-scrollbar]:hidden"
 							>
 								<Combobox.Viewport>
 									{#each filtered_saved_teams as team}<Combobox.Item
@@ -203,13 +263,13 @@
 				onfilterchange={(filter) => (scorecard_filter = filter)}
 			/>{/if}
 		{#if visible_scorecards.length > 0}<div class="mt-4 grid gap-4 lg:grid-cols-3">
-				{#each visible_scorecards as entry}
+				{#each visible_scorecards as entry (entry.team.id)}
 					{@const needs_scoring = current_is_tiebreaker
 						? !entry.current_tiebreaker_submission
 						: !entry.current_submission}
 					<article
 						class="rounded-xl border p-3 transition-colors {data.current_question && needs_scoring
-							? 'border-amber-300 bg-white shadow-[0_0_0_3px_rgba(251,191,36,0.1)]'
+							? 'border-[#d5b86a] bg-white'
 							: 'border-[#e1e9e3] bg-white'}"
 					>
 						<div class="flex items-center justify-between">
@@ -217,13 +277,59 @@
 								<h3 class="font-[Kanit] text-lg font-medium">{entry.team.name}</h3>
 								{#if data.current_question}<p
 										class="mt-0.5 text-[.62rem] font-extrabold tracking-[.09em] uppercase {needs_scoring
-											? 'text-amber-700'
+											? 'text-[#936b19]'
 											: 'text-emerald-700'}"
 									>
 										{needs_scoring ? 'Needs scoring' : 'Scored'}
 									</p>{/if}
 							</div>
 							<div class="flex items-center gap-2">
+								<Dialog.Root>
+									<Dialog.Trigger
+										class="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-bold text-[#71837a] transition hover:bg-rose-50 hover:text-rose-700"
+									>
+										<X size={15} /> Remove
+									</Dialog.Trigger>
+									<Dialog.Portal>
+										<Dialog.Overlay class="fixed inset-0 z-50 bg-[#123328]/35 backdrop-blur-sm" />
+										<Dialog.Content
+											class="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#dce7df] bg-white p-6 shadow-2xl outline-hidden"
+										>
+											<Dialog.Title class="font-[Kanit] text-2xl font-medium text-[#183d32]"
+												>Remove {entry.team.name}?</Dialog.Title
+											>
+											<Dialog.Description class="mt-2 text-sm leading-6 text-[#6a7f74]">
+												{#if entry.submission_count > 0}
+													This team has {entry.submission_count} saved
+													{entry.submission_count === 1 ? 'submission' : 'submissions'} for this game.
+													Removing the team will permanently delete them from this game’s scores.
+												{:else}
+													This removes the team from this game’s scorecards. The saved team will
+													remain available for future games.
+												{/if}
+											</Dialog.Description>
+											<div class="mt-6 flex justify-end gap-2">
+												<Dialog.Close
+													class="rounded-md border border-[#d6e1d8] px-4 py-2.5 text-sm font-bold text-[#4b685c] hover:bg-[#f5f8f5]"
+													>Cancel</Dialog.Close
+												>
+												<form
+													use:enhance={remove_team_enhance}
+													method="POST"
+													action="?/remove_team"
+												>
+													<input type="hidden" name="team_id" value={entry.team.id} />
+													<button
+														type="submit"
+														class="rounded-md bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700"
+													>
+														Remove team
+													</button>
+												</form>
+											</div>
+										</Dialog.Content>
+									</Dialog.Portal>
+								</Dialog.Root>
 								{#if data.current_question && !needs_scoring}
 									<form use:enhance={score_enhance} method="POST" action="?/clear_score">
 										<input type="hidden" name="team_id" value={entry.team.id} />

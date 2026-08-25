@@ -1,5 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, ne } from 'drizzle-orm';
 import QRCode from 'qrcode';
 import { db } from '$lib/server/db';
 import {
@@ -147,27 +147,44 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const host_game = await get_owned_game(params.game_id, params.location_id, locals.user.id);
 	if (!host_game) throw error(404, 'Game not found');
 
-	const [session, roster, submissions, tiebreaker_submissions, available_teams, stump_submissions] =
-		await Promise.all([
-			db.query.game_session.findFirst({ where: eq(game_session.game_id, host_game.id) }),
-			db.query.game_team.findMany({
-				where: eq(game_team.game_id, host_game.id),
-				orderBy: [asc(game_team.created_at)],
-				with: { team: true }
-			}),
-			db.query.team_submission.findMany({ where: eq(team_submission.game_id, host_game.id) }),
-			db.query.tiebreaker_submission.findMany({
-				where: eq(tiebreaker_submission.game_id, host_game.id)
-			}),
-			db.query.team.findMany({
-				where: eq(team.location_id, host_game.location_id),
-				orderBy: [asc(team.name)]
-			}),
-			db.query.stump_the_host_submission.findMany({
-				where: eq(stump_the_host_submission.game_id, host_game.id),
-				orderBy: [asc(stump_the_host_submission.created_at)]
-			})
-		]);
+	const [
+		session,
+		roster,
+		submissions,
+		tiebreaker_submissions,
+		available_teams,
+		stump_submissions,
+		previous_completed_game
+	] = await Promise.all([
+		db.query.game_session.findFirst({ where: eq(game_session.game_id, host_game.id) }),
+		db.query.game_team.findMany({
+			where: eq(game_team.game_id, host_game.id),
+			orderBy: [asc(game_team.created_at)],
+			with: { team: true }
+		}),
+		db.query.team_submission.findMany({ where: eq(team_submission.game_id, host_game.id) }),
+		db.query.tiebreaker_submission.findMany({
+			where: eq(tiebreaker_submission.game_id, host_game.id)
+		}),
+		db.query.team.findMany({
+			where: eq(team.location_id, host_game.location_id),
+			orderBy: [asc(team.name)]
+		}),
+		db.query.stump_the_host_submission.findMany({
+			where: eq(stump_the_host_submission.game_id, host_game.id),
+			orderBy: [asc(stump_the_host_submission.created_at)]
+		}),
+		db.query.game.findFirst({
+			where: and(
+				eq(game.location_id, host_game.location_id),
+				eq(game.status, 'COMPLETED'),
+				ne(game.id, host_game.id)
+			),
+			columns: { id: true, title: true, scheduled_at: true },
+			orderBy: [desc(game.scheduled_at)],
+			with: { game_teams: { columns: { team_id: true } } }
+		})
+	]);
 
 	const active_session = session ?? {
 		phase: 'RULES',
@@ -211,6 +228,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			const team_tiebreakers = tiebreakers_by_team.get(current_team.id) ?? [];
 			return {
 				team: current_team,
+				submission_count: team_submissions.length + team_tiebreakers.length,
 				points: team_submissions.reduce(
 					(total, submission) => total + submission.points_awarded,
 					0
@@ -282,13 +300,17 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 					submission.team_id === team_id && tiebreaker_question_ids.has(submission.question_id)
 			)
 		);
+	const has_tiebreaker_question = tiebreaker_question_ids.size > 0;
+	const requires_tiebreaker =
+		has_podium_tie && has_tiebreaker_question && !has_completed_tiebreaker;
 	const stump_url = new URL(`/stump/${host_game.location_id}`, url.origin).toString();
 	const stump_qr_code = await get_qr_code(stump_url);
 	const recap_url = new URL(`/recap/${host_game.id}`, url.origin).toString();
 	const recap_qr_code = host_game.status === 'COMPLETED' ? await get_qr_code(recap_url) : null;
 	const scorecards = roster
 		.map(({ team: current_team }) => leaderboard.find((entry) => entry.team.id === current_team.id))
-		.filter((entry): entry is (typeof leaderboard)[number] => Boolean(entry));
+		.filter((entry): entry is (typeof leaderboard)[number] => Boolean(entry))
+		.sort((first, second) => first.team.name.localeCompare(second.team.name));
 
 	return {
 		game: host_game,
@@ -307,6 +329,17 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		available_teams: available_teams.filter(
 			(current_team) => !roster.some(({ team: roster_team }) => roster_team.id === current_team.id)
 		),
+		previous_game:
+			previous_completed_game && !active_session.is_started
+				? {
+						title: previous_completed_game.title,
+						scheduled_at: previous_completed_game.scheduled_at,
+						available_team_count: previous_completed_game.game_teams.filter(
+							(previous_team) =>
+								!roster.some(({ team: current_team }) => current_team.id === previous_team.team_id)
+						).length
+					}
+				: null,
 		active_stump_submission:
 			stump_submissions.find(
 				(submission) => submission.id === active_session.stump_the_host_submission_id
@@ -322,6 +355,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		recap_url,
 		recap_qr_code,
 		has_podium_tie,
+		requires_tiebreaker,
 		tiebreaker_team_count: tiebreaker_team_ids.length,
 		has_completed_tiebreaker,
 		phases: presentation_phases
@@ -601,7 +635,7 @@ export const actions: Actions = {
 			(current_round) => current_round.round_type === 'TIEBREAKER'
 		);
 		const tied_team_ids = await podium_tiebreaker_team_ids(host_game.id);
-		if (tiebreaker_round && tied_team_ids.length > 0) {
+		if (tiebreaker_round?.questions.length && tied_team_ids.length > 0) {
 			const tiebreaker_question_ids = tiebreaker_round.questions.map(
 				(current_question) => current_question.id
 			);
@@ -639,7 +673,7 @@ export const actions: Actions = {
 			(current_round) => current_round.round_type === 'TIEBREAKER'
 		);
 		const tied_team_ids = await podium_tiebreaker_team_ids(host_game.id);
-		if (tiebreaker_round && tied_team_ids.length > 0) {
+		if (tiebreaker_round?.questions.length && tied_team_ids.length > 0) {
 			const tiebreaker_question_ids = tiebreaker_round.questions.map(
 				(current_question) => current_question.id
 			);
@@ -685,6 +719,8 @@ export const actions: Actions = {
 		const requested_view = form_data.get('view');
 		const view =
 			requested_view === 'FULL' || requested_view === 'RECAP' ? requested_view : 'BOTTOM';
+		if (view === 'RECAP' && host_game.status !== 'COMPLETED')
+			return fail(400, { message: 'Complete the game before showing its recap QR code.' });
 		await db
 			.update(game_session)
 			.set({ phase: `FINAL_RESULTS_${view}`, updated_at: new Date() })
@@ -711,6 +747,79 @@ export const actions: Actions = {
 		});
 		if (!selected_team) return fail(404, { message: 'Team not found.' });
 		await db.insert(game_team).values({ game_id: host_game.id, team_id }).onConflictDoNothing();
+		return { success: true };
+	},
+	add_previous_teams: async ({ locals, params }) => {
+		if (!locals.user) return fail(401);
+		const host_game = await get_owned_game(params.game_id, params.location_id, locals.user.id);
+		if (!host_game) return fail(404);
+		const session = await db.query.game_session.findFirst({
+			where: eq(game_session.game_id, host_game.id)
+		});
+		if (session?.is_started)
+			return fail(400, { message: 'Teams can only be copied before the game starts.' });
+
+		const previous_game = await db.query.game.findFirst({
+			where: and(
+				eq(game.location_id, host_game.location_id),
+				eq(game.status, 'COMPLETED'),
+				ne(game.id, host_game.id)
+			),
+			orderBy: [desc(game.scheduled_at)],
+			with: { game_teams: { columns: { team_id: true } } }
+		});
+		if (!previous_game)
+			return fail(400, { message: 'No completed game exists at this location yet.' });
+
+		const current_roster = await db.query.game_team.findMany({
+			where: eq(game_team.game_id, host_game.id),
+			columns: { team_id: true }
+		});
+		const current_team_ids = new Set(current_roster.map((entry) => entry.team_id));
+		const team_ids_to_add = previous_game.game_teams
+			.map((entry) => entry.team_id)
+			.filter((team_id) => !current_team_ids.has(team_id));
+		if (!team_ids_to_add.length)
+			return fail(400, { message: 'All teams from the last game are already on this scorecard.' });
+
+		await db
+			.insert(game_team)
+			.values(team_ids_to_add.map((team_id) => ({ game_id: host_game.id, team_id })))
+			.onConflictDoNothing();
+		return { success: true, added_team_count: team_ids_to_add.length };
+	},
+	remove_team: async ({ request, locals, params }) => {
+		if (!locals.user) return fail(401);
+		const host_game = await get_owned_game_access(
+			params.game_id,
+			params.location_id,
+			locals.user.id
+		);
+		if (!host_game) return fail(404);
+		const team_id = String((await request.formData()).get('team_id') ?? '');
+		if (!team_id) return fail(400, { message: 'Choose a team to remove.' });
+		const roster_entry = await db.query.game_team.findFirst({
+			where: and(eq(game_team.game_id, host_game.id), eq(game_team.team_id, team_id))
+		});
+		if (!roster_entry) return fail(404, { message: 'Team is not on this game.' });
+		await db.transaction(async (tx) => {
+			await tx
+				.delete(team_submission)
+				.where(
+					and(eq(team_submission.game_id, host_game.id), eq(team_submission.team_id, team_id))
+				);
+			await tx
+				.delete(tiebreaker_submission)
+				.where(
+					and(
+						eq(tiebreaker_submission.game_id, host_game.id),
+						eq(tiebreaker_submission.team_id, team_id)
+					)
+				);
+			await tx
+				.delete(game_team)
+				.where(and(eq(game_team.game_id, host_game.id), eq(game_team.team_id, team_id)));
+		});
 		return { success: true };
 	},
 	toggle_bonus: async ({ request, locals, params }) => {
