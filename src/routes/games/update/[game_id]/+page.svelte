@@ -1,13 +1,18 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { ChevronDown, Trash2 } from '@lucide/svelte';
+	import { ChevronDown, ChevronUp, LockKeyhole, Trash2 } from '@lucide/svelte';
 	import { flip } from 'svelte/animate';
 	import { fly } from 'svelte/transition';
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { PageData } from './$types';
 	import type { CreateGameForm, GameRoundSetup, QuestionCategory } from '$lib/game-builder-types';
 	import { validate_game_rounds, type RoundValidationErrors } from '$lib/game-builder-validation';
+	import {
+		clear_game_builder_draft,
+		load_game_builder_draft,
+		save_game_builder_draft
+	} from '$lib/game-builder-draft';
 	import {
 		InputField,
 		StandardRoundForm,
@@ -34,9 +39,13 @@
 	let is_delete_round_dialog_open = $state(false);
 	let pending_round_index = $state<number | null>(null);
 	let is_question_search_open = $state(false);
+	let is_adding_round = $state(false);
 	let is_category_dialog_open = $state(false);
 	let new_category_name = $state('');
 	let target_question_ref = $state<{ round_idx: number; q_idx: number } | null>(null);
+	const draft_key = `clover-trivia:game-builder:update:${initial_game?.id ?? 'unknown'}`;
+	let is_draft_ready = $state(false);
+	let draft_status = $state<string | null>(null);
 
 	let form_state = $state<CreateGameForm>({
 		name: initial_game?.title ?? '',
@@ -129,12 +138,14 @@
 
 	// Accordion Toggle Logic
 	function focus_new_round(round_idx: number) {
-		let new_state: Record<number, boolean> = {};
-		form_state.rounds.forEach((_, idx) => {
-			new_state[idx] = false;
+		is_adding_round = true;
+		const new_open_state: Record<number, boolean> = {};
+		form_state.rounds.forEach((_, index) => {
+			new_open_state[index] = false;
 		});
-		new_state[round_idx] = true;
-		open_rounds = new_state;
+		new_open_state[round_idx] = true;
+		open_rounds = new_open_state;
+		requestAnimationFrame(() => (is_adding_round = false));
 	}
 
 	// Add / Remove Rounds
@@ -253,6 +264,22 @@
 		update_round_numbering();
 	}
 
+	function move_round(index: number, direction: -1 | 1) {
+		if (is_locked) return;
+		const target_index = index + direction;
+		if (target_index < 0 || target_index >= form_state.rounds.length) return;
+		const rounds = [...form_state.rounds];
+		[rounds[index], rounds[target_index]] = [rounds[target_index], rounds[index]];
+		form_state.rounds = rounds;
+		update_round_numbering();
+		round_errors = {};
+		open_rounds = {
+			...open_rounds,
+			[index]: open_rounds[target_index],
+			[target_index]: open_rounds[index]
+		};
+	}
+
 	function request_round_removal(index: number) {
 		if (is_locked) return;
 		pending_round_index = index;
@@ -264,6 +291,29 @@
 		pending_round_index = null;
 		is_delete_round_dialog_open = false;
 	}
+
+	onMount(() => {
+		if (!is_locked) {
+			const draft = load_game_builder_draft(draft_key);
+			if (draft) {
+				form_state = draft.form_state;
+				if (draft.open_rounds) open_rounds = draft.open_rounds;
+				update_round_numbering();
+				draft_status = 'Unsaved draft restored from this browser.';
+			}
+		}
+		is_draft_ready = true;
+	});
+
+	$effect(() => {
+		if (!is_draft_ready || is_locked) return;
+		JSON.stringify({ form_state }, (key, value) => (key === 'image_file' ? undefined : value));
+		const timeout = window.setTimeout(() => {
+			save_game_builder_draft(draft_key, form_state, undefined, open_rounds);
+			draft_status = 'Changes saved locally.';
+		}, 400);
+		return () => window.clearTimeout(timeout);
+	});
 </script>
 
 <svelte:head>
@@ -281,9 +331,9 @@
 
 		{#if is_locked}
 			<span
-				class="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-700"
+				class="flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700"
 			>
-				🔒 Game {game_status.replace('_', ' ')} (Structure Locked)
+				<LockKeyhole size={14} /> Game {game_status.replace('_', ' ')} — structure locked
 			</span>
 		{:else}<QuestionSearchDialog bind:open={is_question_search_open} />
 		{/if}
@@ -328,6 +378,7 @@
 				if (result.type === 'failure') {
 					error_message = (result.data?.message as string) || 'Failed to update game.';
 				} else {
+					clear_game_builder_draft(draft_key);
 					await goto('/dashboard');
 				}
 			};
@@ -358,8 +409,8 @@
 						on_create_location={go_to_create_location}
 					/>
 					{#if has_rounds}
-						<span class="text-[11px] font-semibold text-amber-600">
-							🔒 Location locked while rounds exist
+						<span class="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-600">
+							<LockKeyhole size={12} /> Location is fixed after adding rounds.
 						</span>
 					{/if}
 				</div>
@@ -411,8 +462,8 @@
 					</span>
 				</div>
 				{#if has_rounds}
-					<span class="mt-2 block text-[11px] font-semibold text-amber-600">
-						🔒 Wagers locked while rounds exist
+					<span class="mt-2 flex items-center gap-1 text-[11px] font-medium text-rose-600">
+						<LockKeyhole size={12} /> Wagers are fixed after adding rounds.
 					</span>
 				{/if}
 			</div>
@@ -433,28 +484,28 @@
 							<button
 								type="button"
 								onclick={() => add_round('STANDARD')}
-								class="cursor-pointer rounded-md bg-blue-400 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-500 disabled:opacity-40"
+								class="cursor-pointer rounded-md border border-primary-dark/20 bg-white px-3 py-1.5 text-xs font-semibold text-primary-dark shadow-xs hover:bg-primary-dark/5 disabled:cursor-not-allowed disabled:opacity-40"
 							>
 								+ Standard Round
 							</button>
 							<button
 								type="button"
 								onclick={() => add_round('HALFTIME')}
-								class="cursor-pointer rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 disabled:opacity-40"
+								class="cursor-pointer rounded-md border border-primary-dark/20 bg-white px-3 py-1.5 text-xs font-semibold text-primary-dark shadow-xs hover:bg-primary-dark/5 disabled:cursor-not-allowed disabled:opacity-40"
 							>
 								+ Halftime
 							</button>
 							<button
 								type="button"
 								onclick={() => add_round('FINAL')}
-								class="cursor-pointer rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-40"
+								class="cursor-pointer rounded-md border border-primary-dark/20 bg-white px-3 py-1.5 text-xs font-semibold text-primary-dark shadow-xs hover:bg-primary-dark/5 disabled:cursor-not-allowed disabled:opacity-40"
 							>
 								+ Final
 							</button>
 							<button
 								type="button"
 								onclick={() => add_round('TIEBREAKER')}
-								class="cursor-pointer rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 disabled:opacity-40"
+								class="cursor-pointer rounded-md border border-primary-dark/20 bg-white px-3 py-1.5 text-xs font-semibold text-primary-dark shadow-xs hover:bg-primary-dark/5 disabled:cursor-not-allowed disabled:opacity-40"
 							>
 								+ Tiebreaker
 							</button>
@@ -463,9 +514,9 @@
 				</div>
 
 				<div class="flex flex-col space-y-3">
-					{#each form_state.rounds as rd, r_idx (rd.round_number)}
+					{#each form_state.rounds as rd, r_idx (rd)}
 						<div
-							animate:flip={{ duration: 180 }}
+							animate:flip={{ duration: is_adding_round ? 0 : 180 }}
 							in:fly={{ y: 12, duration: 180, opacity: 0 }}
 							class="bg-surface-100 overflow-hidden rounded-md border border-secondary/15 shadow-xs"
 						>
@@ -491,6 +542,26 @@
 								</div>
 
 								<div class="flex items-center space-x-2">
+									{#if !is_locked}
+										<div class="flex overflow-hidden rounded-md border border-secondary/15">
+											<button
+												type="button"
+												onclick={() => move_round(r_idx, -1)}
+												disabled={r_idx === 0}
+												aria-label="Move round earlier"
+												class="text-surface-content/65 grid size-8 cursor-pointer place-items-center hover:bg-secondary/10 disabled:cursor-not-allowed disabled:opacity-35"
+												><ChevronUp size={15} /></button
+											>
+											<button
+												type="button"
+												onclick={() => move_round(r_idx, 1)}
+												disabled={r_idx === form_state.rounds.length - 1}
+												aria-label="Move round later"
+												class="text-surface-content/65 grid size-8 cursor-pointer place-items-center border-l border-secondary/15 hover:bg-secondary/10 disabled:cursor-not-allowed disabled:opacity-35"
+												><ChevronDown size={15} /></button
+											>
+										</div>
+									{/if}
 									<button
 										type="button"
 										onclick={() => (open_rounds[r_idx] = open_rounds[r_idx] === false)}
@@ -560,6 +631,11 @@
 					{is_submitting ? 'Saving Changes...' : 'Save Game Changes'}
 				</button>
 			</div>
+			{#if draft_status}
+				<p class="text-surface-content/50 text-right text-xs">
+					{draft_status} Image files need to be selected again.
+				</p>
+			{/if}
 		</fieldset>
 	</form>
 </section>

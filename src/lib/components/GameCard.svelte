@@ -142,8 +142,9 @@
 								>Delete game?</Dialog.Title
 							>
 							<Dialog.Description class="mt-2 text-sm text-[#6a7f74]"
-								>This permanently deletes “{game.title}”, its rounds, questions, images in the
-								database, and any associated game data. This cannot be undone.</Dialog.Description
+								>This permanently deletes “<span class="font-bold text-[#176249]">{game.title}</span
+								>”, its rounds, questions, images in the database, and any associated game data.
+								This cannot be undone.</Dialog.Description
 							>
 							<form method="POST" action="?/delete_game" class="mt-6 flex justify-end gap-2">
 								<input type="hidden" name="game_id" value={game.id} />
@@ -275,8 +276,9 @@
 							>Delete game?</Dialog.Title
 						>
 						<Dialog.Description class="mt-2 text-sm text-[#6a7f74]"
-							>This permanently deletes “{game.title}”, its rounds, questions, images in the
-							database, and any associated game data. This cannot be undone.</Dialog.Description
+							>This permanently deletes “<span class="font-bold text-[#176249]">{game.title}</span
+							>”, its rounds, questions, images in the database, and any associated game data. This
+							cannot be undone.</Dialog.Description
 						>
 						<form method="POST" action="?/delete_game" class="mt-6 flex justify-end gap-2">
 							<input type="hidden" name="game_id" value={game.id} />

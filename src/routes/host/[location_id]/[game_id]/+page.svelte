@@ -31,10 +31,15 @@
 	let compact_mode_timer: ReturnType<typeof setTimeout> | undefined;
 	let is_advancing_slide = $state(false);
 	let is_returning_slide = $state(false);
+	let is_advancing_slide_loading = $state(false);
+	let is_returning_slide_loading = $state(false);
+	let next_slide_loading_timer: ReturnType<typeof setTimeout> | undefined;
+	let previous_slide_loading_timer: ReturnType<typeof setTimeout> | undefined;
 	let is_presentation_connected = $state(false);
 	let presentation_health_timer: ReturnType<typeof setTimeout> | undefined;
 	let presentation_sync_channel: BroadcastChannel | null = null;
 	let stump_event_source: EventSource | null = null;
+	let is_question_editor_open = $state(false);
 
 	let current_is_standard = $derived(data.current_round?.round_type === 'STANDARD');
 	let is_presentation_popout = $derived(page.url.searchParams.get('presentation') === '1');
@@ -73,8 +78,8 @@
 		presentation_leaderboard_density === 'tight'
 			? 'text-[.85rem]'
 			: presentation_leaderboard_density === 'compact'
-				? 'text-[1.05rem]'
-				: 'text-lg'
+				? 'text-xl'
+				: 'text-3xl'
 	);
 	let presentation_leaderboard_points_size = $derived(
 		presentation_leaderboard_density === 'tight'
@@ -215,20 +220,38 @@
 			show_action_error(result);
 		};
 	};
+	const active_question_edit_enhance: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			presentation_sync_channel?.postMessage('session-updated');
+			await update({ reset: false });
+			if (result.type === 'success') {
+				is_question_editor_open = false;
+				toast.success('Active question updated.');
+			} else show_action_error(result);
+		};
+	};
 	const next_slide_enhance: SubmitFunction = () => {
 		is_advancing_slide = true;
+		next_slide_loading_timer = setTimeout(() => (is_advancing_slide_loading = true), 600);
 		return async ({ update }) => {
 			presentation_sync_channel?.postMessage('session-updated');
 			await update({ reset: false });
+			if (next_slide_loading_timer) clearTimeout(next_slide_loading_timer);
+			next_slide_loading_timer = undefined;
 			is_advancing_slide = false;
+			is_advancing_slide_loading = false;
 		};
 	};
 	const previous_slide_enhance: SubmitFunction = () => {
 		is_returning_slide = true;
+		previous_slide_loading_timer = setTimeout(() => (is_returning_slide_loading = true), 600);
 		return async ({ update }) => {
 			presentation_sync_channel?.postMessage('session-updated');
 			await update({ reset: false });
+			if (previous_slide_loading_timer) clearTimeout(previous_slide_loading_timer);
+			previous_slide_loading_timer = undefined;
 			is_returning_slide = false;
+			is_returning_slide_loading = false;
 		};
 	};
 
@@ -550,21 +573,42 @@
 					{#key `${data.session.phase}-${data.session.current_round_order}-${data.session.current_question_order}`}<div
 							class="clover-presentation-slide flex w-full flex-col items-center"
 						>
-							{#if is_final_results_recap && data.recap_qr_code}<div
-									class="flex flex-col items-center"
+							{#if is_final_results_recap && data.recap_qr_code && data.location_qr_code}<div
+									class="flex w-full flex-col items-center"
 								>
 									<p
 										class="mb-5 font-[Kanit] text-2xl font-medium text-[#174735] {is_presentation_popout
 											? 'text-4xl'
 											: ''}"
 									>
-										Scan for tonight’s questions and answers
+										Thanks for playing!
 									</p>
-									<img
-										src={data.recap_qr_code}
-										alt="Completed game recap QR code"
-										class="size-[268px] rounded-xl border border-[#dce7df] bg-white p-3 shadow-sm"
-									/>
+									<div class="grid w-full max-w-3xl grid-cols-2 gap-5">
+										<div
+											class="flex flex-col items-center rounded-2xl border border-[#dce7df] bg-white/80 p-4 shadow-sm"
+										>
+											<p class="font-[Kanit] text-xl font-medium text-[#174735]">Tonight’s game</p>
+											<p class="mt-1 text-center text-sm text-[#527466]">Questions & answers</p>
+											<img
+												src={data.recap_qr_code}
+												alt="Completed game recap QR code"
+												class="mt-3 size-[clamp(12rem,18vw,17rem)] rounded-xl border border-[#dce7df] bg-white p-3"
+											/>
+										</div>
+										<div
+											class="flex flex-col items-center rounded-2xl border border-[#dce7df] bg-white/80 p-4 shadow-sm"
+										>
+											<p class="font-[Kanit] text-xl font-medium text-[#174735]">More games here</p>
+											<p class="mt-1 text-center text-sm text-[#527466]">
+												{data.game.location.name} game history
+											</p>
+											<img
+												src={data.location_qr_code}
+												alt="Location game history QR code"
+												class="mt-3 size-[clamp(12rem,18vw,17rem)] rounded-xl border border-[#dce7df] bg-white p-3"
+											/>
+										</div>
+									</div>
 								</div>
 							{:else if data.session.phase === 'RULES'}<div
 									class="w-full {is_presentation_popout
@@ -592,12 +636,12 @@
 								<p class="mt-3 text-[#6d8478]">Get your wagers ready.</p>
 							{:else if data.session.phase === 'CATEGORIES'}<div
 									class="flex w-full max-w-4xl flex-col items-center justify-center gap-3 {is_presentation_popout
-										? 'gap-5'
+										? 'gap-8'
 										: ''}"
 								>
 									{#each data.current_categories as category}<span
 											class="font-[Kanit] font-medium tracking-[-.02em] text-[#287056] uppercase {is_presentation_popout
-												? 'py-2 text-4xl md:text-6xl'
+												? 'py-0 text-[clamp(3rem,7vw,7rem)] leading-[.88]'
 												: 'text-2xl md:text-3xl'}">{category}</span
 										>{/each}
 								</div>
@@ -636,22 +680,24 @@
 														? 'border-[#e4d5ad]'
 														: ''}"
 												>
-													{#if rank <= 3}<Trophy
-															size={is_presentation_popout ? 18 : 16}
-															class={rank === 1
-																? 'text-[#bd8a27]'
-																: rank === 2
-																	? 'text-[#9aa6af]'
-																	: 'text-[#b87333]'}
-														/>{:else}<span
-															class="grid shrink-0 place-items-center rounded-full bg-[#edf5ef] font-extrabold text-[#286d54] {presentation_leaderboard_rank_size}"
-															>{rank}</span
+													{#if rank <= 3}<span class="grid w-8 shrink-0 place-items-center"
+															><Trophy
+																size={is_presentation_popout ? 18 : 16}
+																class={rank === 1
+																	? 'text-[#bd8a27]'
+																	: rank === 2
+																		? 'text-[#9aa6af]'
+																		: 'text-[#b87333]'}
+															/></span
+														>{:else}<span class="grid w-8 shrink-0 place-items-center"
+															><span
+																class="grid place-items-center rounded-full bg-[#edf5ef] font-extrabold text-[#286d54] {presentation_leaderboard_rank_size}"
+																>{rank}</span
+															></span
 														>{/if}
 													<span
-														class="min-w-0 flex-1 truncate font-[Kanit] leading-tight font-medium text-[#174735] {presentation_leaderboard_text_size} {is_presentation_popout &&
-														presentation_leaderboard_density === 'normal'
-															? 'text-[1.05rem]'
-															: ''}">{entry.team.name}</span
+														class="min-w-0 flex-1 truncate font-[Kanit] leading-tight font-medium text-[#174735] {presentation_leaderboard_text_size}"
+														>{entry.team.name}</span
 													><strong
 														class="font-[Kanit] leading-tight font-medium text-[#1e624b] {presentation_leaderboard_points_size} {is_presentation_popout &&
 														presentation_leaderboard_density === 'normal'
@@ -709,10 +755,8 @@
 											>{leaderboard_rank_for(entry)}</span
 										>
 										<span
-											class="min-w-0 flex-1 truncate font-[Kanit] leading-tight font-medium text-[#174735] {presentation_leaderboard_text_size} {is_presentation_popout &&
-											presentation_leaderboard_density === 'normal'
-												? 'text-[1.05rem]'
-												: ''}">{entry.team.name}</span
+											class="min-w-0 flex-1 truncate font-[Kanit] leading-tight font-medium text-[#174735] {presentation_leaderboard_text_size}"
+											>{entry.team.name}</span
 										>
 										<strong
 											class="font-[Kanit] leading-tight font-medium text-[#1e624b] {presentation_leaderboard_points_size} {is_presentation_popout &&
@@ -763,7 +807,7 @@
 		{#if is_compact_summary_visible}<div
 				in:fly={{ y: 10, duration: 170, easing: cubicOut }}
 				out:fade={{ duration: 110 }}
-				class="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]"
+				class="grid gap-4 md:grid-cols-[minmax(0,1fr)_340px]"
 			>
 				<section
 					class="rounded-2xl border border-[#dce7df] bg-white p-5 shadow-[0_12px_28px_#163b320d]"
@@ -802,7 +846,7 @@
 										class="grid size-6 shrink-0 place-items-center rounded-full bg-white text-xs font-extrabold text-[#286d54] shadow-sm"
 										>{leaderboard_position_for(entry)}</span
 									>
-									<span class="min-w-0 flex-1 truncate font-[Kanit] font-medium text-[#174735]"
+									<span class="min-w-0 flex-1 truncate text-[.8rem] font-semibold text-[#174735]"
 										>{entry.team.name}</span
 									>
 									<strong class="font-[Kanit] text-lg font-medium text-[#1e624b]"
@@ -827,10 +871,12 @@
 					class="inline-flex items-center gap-2 rounded-md border border-[#c8ddce] px-4 py-3 text-sm font-bold text-[#246d52]"
 					><ExternalLink size={16} /> Presentation</button
 				>
-				{#if data.current_question}<Dialog.Root>
+				{#if data.session.phase === 'QUESTION' && data.current_question}<Dialog.Root
+						bind:open={is_question_editor_open}
+					>
 						<Dialog.Trigger
 							class="rounded-md border border-[#c8ddce] px-4 py-3 text-sm font-bold text-[#246d52] hover:bg-[#f2f8f3]"
-							>Answer & notes</Dialog.Trigger
+							>Question & answer</Dialog.Trigger
 						>
 						<Dialog.Portal>
 							<Dialog.Overlay class="fixed inset-0 z-50 bg-[#123328]/35 backdrop-blur-sm" />
@@ -839,21 +885,74 @@
 							>
 								<DialogCloseButton />
 								<Dialog.Title class="font-[Kanit] text-2xl font-medium text-[#183d32]"
-									>Question details</Dialog.Title
+									>Edit active question</Dialog.Title
 								>
 								<Dialog.Description class="mt-1 text-sm text-[#71837a]"
-									>{data.current_question.question_text}</Dialog.Description
+									>Only this active question and its answer can be changed during a game.</Dialog.Description
 								>
-								<div class="mt-5 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-									<p class="text-xs font-extrabold tracking-[.1em] text-emerald-700 uppercase">
-										Answer
-									</p>
-									<p
-										class="mt-2 font-[Kanit] text-xl font-medium whitespace-pre-wrap text-[#174735]"
+								<form
+									use:enhance={active_question_edit_enhance}
+									method="POST"
+									action="?/edit_active_question"
+									class="mt-5 space-y-4"
+								>
+									<input type="hidden" name="question_id" value={data.current_question.id} />
+									<label class="block text-sm font-bold text-[#315c4d]">
+										Question
+										<textarea
+											required
+											name="question_text"
+											rows="2"
+											value={data.current_question.question_text}
+											class="mt-1.5 block w-full resize-none rounded-lg border border-[#c8ddce] bg-white px-3 py-2 text-sm leading-6 text-[#183d32] outline-hidden focus:border-[#246d52]"
+										></textarea>
+									</label>
+									{#if data.current_round?.round_type === 'TIEBREAKER'}
+										<label class="block text-sm font-bold text-[#315c4d]">
+											Exact numeric answer
+											<input
+												required
+												name="numeric_answer"
+												type="number"
+												step="any"
+												value={data.current_question.numeric_answer ?? ''}
+												class="mt-1.5 block w-full rounded-lg border border-[#c8ddce] bg-white px-3 py-2 text-sm text-[#183d32] outline-hidden focus:border-[#246d52]"
+											/>
+										</label>
+									{:else if data.current_round?.round_type === 'HALFTIME'}
+										<div>
+											<p class="text-sm font-bold text-[#315c4d]">Accepted answers</p>
+											<div class="mt-1.5 space-y-2">
+												{#each data.current_question.items as item, answer_idx}
+													<label class="flex items-center gap-2 text-sm text-[#527466]">
+														<span class="w-5 font-bold">{answer_idx + 1}</span>
+														<input
+															required
+															name="answer_item"
+															value={item.answer_text}
+															class="block min-w-0 flex-1 rounded-lg border border-[#c8ddce] bg-white px-3 py-2 text-sm text-[#183d32] outline-hidden focus:border-[#246d52]"
+														/>
+													</label>
+												{/each}
+											</div>
+										</div>
+									{:else}
+										<label class="block text-sm font-bold text-[#315c4d]">
+											Answer
+											<textarea
+												required
+												name="answer"
+												rows="2"
+												value={data.current_question.correct_answer_text}
+												class="mt-1.5 block w-full resize-none rounded-lg border border-[#c8ddce] bg-white px-3 py-2 text-sm leading-6 text-[#183d32] outline-hidden focus:border-[#246d52]"
+											></textarea>
+										</label>
+									{/if}
+									<button
+										class="rounded-md bg-[#176249] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#124d39]"
+										>Save active question</button
 									>
-										{data.current_question.correct_answer_text}
-									</p>
-								</div>
+								</form>
 								{#if data.current_question.song_title || data.current_question.song_artist}<div
 										class="mt-3 rounded-xl border border-sky-100 bg-sky-50 p-4"
 									>
@@ -953,7 +1052,7 @@
 						data-hotkey="previous"
 						disabled={data.session.phase === 'RULES' || is_returning_slide}
 						class="rounded-md border border-[#c8ddce] px-4 py-3 text-sm font-bold text-[#246d52] disabled:cursor-not-allowed disabled:opacity-40"
-						>{is_returning_slide ? 'Loading…' : 'Previous'}</button
+						>{is_returning_slide_loading ? 'Loading…' : 'Previous'}</button
 					>
 				</form>
 				{#if data.session.phase === 'COMPLETE' && !data.requires_tiebreaker}<form
@@ -1011,7 +1110,8 @@
 							data-hotkey="next"
 							disabled={is_advancing_slide}
 							class="inline-flex items-center gap-2 rounded-md bg-[#176249] px-4 py-3 text-sm font-bold text-white shadow-[0_8px_18px_#17624920]"
-							>{is_advancing_slide ? 'Loading…' : 'Next slide'} <ChevronRight size={17} /></button
+							>{is_advancing_slide_loading ? 'Loading…' : 'Next slide'}
+							<ChevronRight size={17} /></button
 						>
 					</form>{/if}
 			</div>

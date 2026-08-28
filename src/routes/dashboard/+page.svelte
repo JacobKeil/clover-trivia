@@ -155,7 +155,7 @@
 			</div>{/if}
 	</section>
 
-	<section class="mt-12 border-t border-[#e3ebe4] pt-10">
+	<section id="locations" class="mt-12 border-t border-[#e3ebe4] pt-10">
 		<div class="flex items-end justify-between gap-4">
 			<div>
 				<p class="text-[.7rem] font-extrabold tracking-[.12em] text-[#238061] uppercase">

@@ -7,6 +7,7 @@ import {
 	game_session,
 	game_team,
 	question,
+	question_item,
 	round,
 	team,
 	team_submission,
@@ -46,7 +47,12 @@ async function get_owned_game(game_id: string, location_id: string, user_id: str
 			location: { with: { location_rule: true } },
 			rounds: {
 				orderBy: [asc(round.order)],
-				with: { questions: { orderBy: [asc(question.order)], with: { category: true } } }
+				with: {
+					questions: {
+						orderBy: [asc(question.order)],
+						with: { category: true, items: { orderBy: [asc(question_item.order)] } }
+					}
+				}
 			}
 		}
 	});
@@ -306,7 +312,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const stump_url = new URL(`/stump/${host_game.location_id}`, url.origin).toString();
 	const stump_qr_code = await get_qr_code(stump_url);
 	const recap_url = new URL(`/recap/${host_game.id}`, url.origin).toString();
-	const recap_qr_code = host_game.status === 'COMPLETED' ? await get_qr_code(recap_url) : null;
+	const location_url = new URL(`/locations/${host_game.location_id}`, url.origin).toString();
+	const [recap_qr_code, location_qr_code] =
+		host_game.status === 'COMPLETED'
+			? await Promise.all([get_qr_code(recap_url), get_qr_code(location_url)])
+			: [null, null];
 	const scorecards = roster
 		.map(({ team: current_team }) => leaderboard.find((entry) => entry.team.id === current_team.id))
 		.filter((entry): entry is (typeof leaderboard)[number] => Boolean(entry))
@@ -354,6 +364,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		stump_qr_code,
 		recap_url,
 		recap_qr_code,
+		location_url,
+		location_qr_code,
 		has_podium_tie,
 		requires_tiebreaker,
 		tiebreaker_team_count: tiebreaker_team_ids.length,
@@ -363,6 +375,63 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 };
 
 export const actions: Actions = {
+	edit_active_question: async ({ request, locals, params }) => {
+		if (!locals.user) return fail(401);
+		const host_game = await get_owned_game(params.game_id, params.location_id, locals.user.id);
+		if (!host_game) return fail(404);
+
+		const session = await db.query.game_session.findFirst({
+			where: eq(game_session.game_id, host_game.id)
+		});
+		if (!session?.is_started || session.phase !== 'QUESTION')
+			return fail(400, { message: 'Questions can only be edited while they are active.' });
+
+		const form_data = await request.formData();
+		const question_id = String(form_data.get('question_id') ?? '');
+		const question_text = String(form_data.get('question_text') ?? '').trim();
+		const answer = String(form_data.get('answer') ?? '').trim();
+		const answer_items = form_data.getAll('answer_item').map((item) => String(item).trim());
+		const current_round = host_game.rounds.find(
+			(current_round) => current_round.order === session.current_round_order
+		);
+		const active_question = current_round?.questions.find(
+			(current_question) => current_question.order === session.current_question_order
+		);
+		if (!active_question || active_question.id !== question_id)
+			return fail(400, { message: 'Only the active question can be edited.' });
+		const changes: { question_text: string; correct_answer_text: string; numeric_answer?: number } =
+			{
+				question_text,
+				correct_answer_text: answer
+			};
+		if (current_round?.round_type === 'TIEBREAKER') {
+			const numeric_answer = Number(form_data.get('numeric_answer'));
+			if (!Number.isFinite(numeric_answer))
+				return fail(400, { message: 'Enter a valid numeric tiebreaker answer.' });
+			changes.numeric_answer = numeric_answer;
+			changes.correct_answer_text = String(numeric_answer);
+		} else if (current_round?.round_type === 'HALFTIME') {
+			if (answer_items.length !== active_question.max_items || answer_items.some((item) => !item))
+				return fail(400, { message: 'Fill in every halftime answer.' });
+			changes.correct_answer_text = answer_items.join('\n');
+		} else if (!answer) return fail(400, { message: 'Enter both a question and answer.' });
+		if (!question_text) return fail(400, { message: 'Enter both a question and answer.' });
+
+		await db.transaction(async (tx) => {
+			await tx.update(question).set(changes).where(eq(question.id, active_question.id));
+			if (current_round?.round_type === 'HALFTIME') {
+				await tx.delete(question_item).where(eq(question_item.question_id, active_question.id));
+				await tx.insert(question_item).values(
+					answer_items.map((answer_text, index) => ({
+						question_id: active_question.id,
+						answer_text,
+						order: index + 1
+					}))
+				);
+			}
+		});
+		return { success: true };
+	},
 	start: async ({ locals, params }) => {
 		if (!locals.user) return fail(401);
 		const host_game = await get_owned_game(params.game_id, params.location_id, locals.user.id);
@@ -472,6 +541,10 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401);
 		const host_game = await get_owned_game(params.game_id, params.location_id, locals.user.id);
 		if (!host_game) return fail(404);
+		if (host_game.status !== 'IN_PROGRESS')
+			return fail(400, {
+				message: 'The leaderboard is only available while a game is in progress.'
+			});
 		const session = await db.query.game_session.findFirst({
 			where: eq(game_session.game_id, host_game.id)
 		});
@@ -492,6 +565,10 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401);
 		const host_game = await get_owned_game(params.game_id, params.location_id, locals.user.id);
 		if (!host_game) return fail(404);
+		if (host_game.status !== 'IN_PROGRESS')
+			return fail(400, {
+				message: 'Stump the Host is only available while a game is in progress.'
+			});
 		const submissions = await db.query.stump_the_host_submission.findMany({
 			where: eq(stump_the_host_submission.game_id, host_game.id)
 		});
@@ -534,6 +611,10 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401);
 		const host_game = await get_owned_game(params.game_id, params.location_id, locals.user.id);
 		if (!host_game) return fail(404);
+		if (host_game.status !== 'IN_PROGRESS')
+			return fail(400, {
+				message: 'Stump the Host is only available while a game is in progress.'
+			});
 		await db
 			.update(game_session)
 			.set({ is_stump_answer_revealed: true, updated_at: new Date() })
@@ -709,6 +790,9 @@ export const actions: Actions = {
 			.set({
 				phase: 'FINAL_RESULTS_RECAP',
 				is_leaderboard_visible: false,
+				is_stump_the_host_visible: false,
+				is_stump_answer_revealed: false,
+				stump_the_host_submission_id: null,
 				updated_at: new Date()
 			})
 			.where(eq(game_session.game_id, host_game.id));

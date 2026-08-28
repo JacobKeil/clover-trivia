@@ -51,6 +51,7 @@
 				required
 				id="tb_ans_{r_idx}"
 				type="number"
+				step="any"
 				placeholder="e.g. 4000"
 				class={field_class(missing_number(question.numeric_answer))}
 				bind:value={question.numeric_answer}

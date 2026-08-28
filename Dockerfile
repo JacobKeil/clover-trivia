@@ -8,16 +8,12 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
-# `.svelte-kit` is intentionally excluded from the build context, so regenerate
-# SvelteKit's generated TypeScript configuration before Vite reads tsconfig.json.
+
 RUN bunx svelte-kit sync
 ARG DATABASE_URL=postgres://build:build@localhost:5432/build
 ARG BETTER_AUTH_SECRET=build-only-secret-not-used-at-runtime-32-chars
 ARG ORIGIN=http://localhost
 ENV DATABASE_URL=${DATABASE_URL}
-# Server-only modules are evaluated while SvelteKit builds the app. These values only
-# exist in the build stage; the production container receives its real values from
-# .env.production through Docker Compose.
 ENV BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 ENV ORIGIN=${ORIGIN}
 RUN bun run build
@@ -28,11 +24,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
-# SvelteKit's adapter-node default is 512K, which is too small for image uploads.
-# The reverse proxy is configured with the same 20 MB limit.
 ENV BODY_SIZE_LIMIT=20M
 
-# Drizzle Kit is retained so this container can apply checked-in migrations on startup.
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/build ./build

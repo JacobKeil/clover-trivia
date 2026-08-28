@@ -1,0 +1,19 @@
+{
+	"name": "Clover Trivia",
+	"short_name": "Clover Trivia",
+	"icons": [
+		{
+			"src": "/favicon-192.png",
+			"sizes": "192x192",
+			"type": "image/png"
+		},
+		{
+			"src": "/favicon-512.png",
+			"sizes": "512x512",
+			"type": "image/png"
+		}
+	],
+	"theme_color": "#176249",
+	"background_color": "#ffffff",
+	"display": "standalone"
+}

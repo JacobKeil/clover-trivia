@@ -44,17 +44,13 @@
 
 {#if is_visible && is_navigating}
 	<div
-		class="fixed inset-0 z-100 grid place-items-center bg-white/72 px-4 backdrop-blur-[1px]"
+		class="fixed inset-0 z-100 grid place-items-center bg-white/45 backdrop-blur-[1px]"
 		role="status"
 		aria-live="polite"
+		aria-label="Loading page"
 	>
-		<div
-			class="flex items-center gap-3 rounded-xl border border-[#d7e5da] bg-white px-5 py-4 text-sm font-semibold text-[#173f33] shadow-xl"
-		>
-			<span class="size-5 animate-spin rounded-full border-2 border-[#8fc9a1] border-t-[#176249]"
-			></span>
-			<span>Loading page…</span>
-		</div>
+		<span class="size-8 animate-spin rounded-full border-[3px] border-[#8fc9a1] border-t-[#176249]"
+		></span>
 	</div>
 {:else if is_visible}
 	<div

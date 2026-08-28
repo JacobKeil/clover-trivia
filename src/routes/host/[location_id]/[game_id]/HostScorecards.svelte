@@ -320,7 +320,7 @@
 											class="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#dce7df] bg-white p-6 shadow-2xl outline-hidden"
 										>
 											<Dialog.Title class="font-[Kanit] text-2xl font-medium text-[#183d32]"
-												>Remove {entry.team.name}?</Dialog.Title
+												>Remove <span class="text-[#176249]">{entry.team.name}</span>?</Dialog.Title
 											>
 											<Dialog.Description class="mt-2 text-sm leading-6 text-[#6a7f74]">
 												{#if entry.submission_count > 0}
@@ -614,6 +614,7 @@
 											required
 											name="submitted_answer"
 											type="number"
+											step="any"
 											value={entry.current_tiebreaker_submission?.submitted_answer ?? ''}
 											class="mt-1 block h-9 w-28 rounded-md border border-[#d6e1d8] px-2"
 										/></label

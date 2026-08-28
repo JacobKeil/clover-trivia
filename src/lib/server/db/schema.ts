@@ -5,6 +5,7 @@ import {
 	text,
 	timestamp,
 	integer,
+	numeric,
 	boolean,
 	pgEnum,
 	uniqueIndex
@@ -146,7 +147,8 @@ export const question = pgTable('question', {
 	category_id: uuid('category_id').references(() => category.id, { onDelete: 'set null' }),
 	question_text: text('question_text').notNull(),
 	correct_answer_text: text('correct_answer_text').notNull(),
-	numeric_answer: integer('numeric_answer'),
+	// Tiebreaker answers may be whole numbers or decimals.
+	numeric_answer: numeric('numeric_answer', { mode: 'number' }),
 	image_url: text('image_url'),
 	question_type: question_type_enum('question_type').default('SINGLE').notNull(),
 	order: integer('order').notNull(),
@@ -208,8 +210,8 @@ export const tiebreaker_submission = pgTable('tiebreaker_submission', {
 		.references(() => team.id, { onDelete: 'cascade' })
 		.notNull(),
 	tied_for_rank: integer('tied_for_rank').notNull(),
-	submitted_answer: integer('submitted_answer').notNull(),
-	difference_from_correct: integer('difference_from_correct'),
+	submitted_answer: numeric('submitted_answer', { mode: 'number' }).notNull(),
+	difference_from_correct: numeric('difference_from_correct', { mode: 'number' }),
 	is_winner: boolean('is_winner').default(false).notNull(),
 	created_at: timestamp('created_at').defaultNow().notNull()
 });

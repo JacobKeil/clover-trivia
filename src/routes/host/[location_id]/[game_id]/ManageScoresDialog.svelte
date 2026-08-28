@@ -277,7 +277,7 @@
 										>Delete saved team?</Dialog.Title
 									>
 									<Dialog.Description class="mt-2 text-sm leading-6 text-[#71837a]">
-										This removes <strong class="text-[#183d32]">{team_to_delete?.name}</strong> from the
+										This removes <strong class="text-[#176249]">{team_to_delete?.name}</strong> from the
 										location and any unscored game rosters. Teams with saved score history cannot be deleted.
 									</Dialog.Description>
 									{#if delete_team_error}<p
@@ -437,6 +437,7 @@
 																/><input
 																	name="submitted_answer"
 																	type="number"
+																	step="any"
 																	value={history_question.tiebreaker_submission?.submitted_answer ??
 																		''}
 																	class="h-8 w-20 rounded-md border border-[#d6e1d8] px-2"

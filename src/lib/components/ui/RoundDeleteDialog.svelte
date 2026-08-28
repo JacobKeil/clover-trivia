@@ -20,7 +20,8 @@
 		>
 			<Dialog.Title class="text-surface-content text-lg font-bold">Delete round?</Dialog.Title>
 			<Dialog.Description class="text-surface-content/65 mt-2 text-sm">
-				This removes {round_name ?? 'this round'} and all of its questions from this game draft.
+				This removes <span class="font-bold text-[#176249]">{round_name ?? 'this round'}</span> and all
+				of its questions from this game draft.
 			</Dialog.Description>
 			<div class="mt-6 flex justify-end gap-2">
 				<Dialog.Close
